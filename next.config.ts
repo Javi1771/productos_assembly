@@ -1,7 +1,10 @@
+// next.config.ts
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    serverComponentsExternalPackages: ["msnodesqlv8"],
+  },
 };
 
 export default nextConfig;
