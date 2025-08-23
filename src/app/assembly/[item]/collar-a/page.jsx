@@ -1,3 +1,4 @@
+// src/app/assembly/[item]/collar-a/page.jsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,8 +7,8 @@ import {
   ArrowLeft, 
   Save, 
   Loader2, 
-  Scissors, 
-  Info, 
+  CircleDot,
+  Info,
   AlertCircle,
   Edit3,
   Plus,
@@ -15,51 +16,51 @@ import {
   FileText,
   Hash,
   CheckCircle,
-  Zap
+  Zap,
+  Settings,
+  Wrench,
+  Shield
 } from "lucide-react";
 import { useAlert } from "@/components/AlertSystem";
 import { decodeItemId } from "@/lib/idCodec";
 
-export default function HoseCutPage() {
+export default function CollarAPage() {
   const router = useRouter();
   const params = useParams();
 
-  //* leer el segmento [item] de la ruta (token base64-url)
-  const rawParam = Array.isArray(params?.item) ? params.item[0] : params?.item;
-  const token = typeof rawParam === "string" ? rawParam.trim() : "";
+  const raw = Array.isArray(params?.item) ? params.item[0] : params?.item;
+  const token = typeof raw === "string" ? raw.trim() : "";
   const assemblyItem = decodeItemId(token);
 
   const { showSuccess, showError, showWarning } = useAlert();
 
-  const [item, setItem] = useState("");          //* Item Hose (irá a Adds[0])
+  const [isEditing, setIsEditing] = useState(false);
+
+  const [item, setItem] = useState("");
   const [description, setDescription] = useState("");
   const [minv, setMinv] = useState("");
-  const [maxv, setMaxv] = useState("");
   const [nom, setNom] = useState("");
-  const [clea, setClea] = useState("");
+  const [maxv, setMaxv] = useState("");
+  const [dies, setDies] = useState("");
+  const [crimp, setCrimp] = useState("");
 
-  const [examples, setExamples] = useState({ items: [], descriptions: [], cleas: [] });
+  const [examples, setExamples] = useState({ items: [], descriptions: [], dies: [], crimps: [] });
   const [loading, setLoading] = useState(false);
   const [loadingMeta, setLoadingMeta] = useState(true);
-  const [isEditing, setIsEditing] = useState(false); //! <-- si ya hay Hose guardado
 
-  //* Volver a la pantalla anterior con el assembly activo
   const backToNew = () => {
     if (!token) return router.replace("/assembly/new");
     router.replace(`/assembly/new?last=${encodeURIComponent(token)}#opcionales`);
   };
 
-  //* Permitir solo números (y un punto) para Min/Nom/Max
   const numericFilter = (raw) => {
-    let v = (raw || "").replace(/,/g, ".");     //! admitir coma como punto
-    v = v.replace(/[^\d.]/g, "");               //! solo dígitos y puntos
+    let v = (raw || "").replace(/,/g, ".");
+    v = v.replace(/[^\d.]/g, "");
     const i = v.indexOf(".");
-    if (i !== -1) {
-      //! permitir solo un punto decimal
-      v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, "");
-    }
+    if (i !== -1) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, "");
     return v;
   };
+  const upper = (s) => (s ?? "").toString().toUpperCase();
 
   async function loadData() {
     if (assemblyItem == null) {
@@ -68,10 +69,9 @@ export default function HoseCutPage() {
     }
     setLoadingMeta(true);
     try {
-      //* Cargar ejemplos y (si existe) el Hose ligado al assembly
       const [rex, rcur] = await Promise.all([
-        fetch("/api/hose/examples", { cache: "no-store" }),
-        fetch(`/api/hose?assemblyItem=${assemblyItem}`, { cache: "no-store" }),
+        fetch("/api/collar-a/examples", { cache: "no-store" }),
+        fetch(`/api/collar-a?assemblyItem=${assemblyItem}`, { cache: "no-store" }),
       ]);
       const dex = await rex.json();
       const dcur = await rcur.json();
@@ -80,22 +80,22 @@ export default function HoseCutPage() {
       setExamples({
         items: dex.items || [],
         descriptions: dex.descriptions || [],
-        cleas: dex.cleas || [],
+        dies: dex.dies || [],
+        crimps: dex.crimps || [],
       });
 
-      if (!rcur.ok || !dcur?.ok) throw new Error(dcur?.error || "No se pudo obtener Hose");
+      if (!rcur.ok || !dcur?.ok) throw new Error(dcur?.error || "No se pudo obtener Collar A");
 
-      if (dcur.hose) {
-        //* Modo edición: prellenar y bloquear Item
+      if (dcur.collarA) {
         setIsEditing(true);
-        setItem(String(dcur.hose.Item ?? "")); //! Item no editable en edición
-        setDescription(dcur.hose.Description ?? "");
-        setMinv(dcur.hose.Min != null ? String(dcur.hose.Min) : "");
-        setNom(dcur.hose.Nom != null ? String(dcur.hose.Nom) : "");
-        setMaxv(dcur.hose.Max != null ? String(dcur.hose.Max) : "");
-        setClea(dcur.hose.Clea ?? "");
+        setItem(dcur.collarA.Item != null ? String(dcur.collarA.Item) : "");
+        setDescription(upper(dcur.collarA.Description ?? ""));
+        setMinv(dcur.collarA.Min != null ? String(dcur.collarA.Min) : "");
+        setNom(dcur.collarA.Nom != null ? String(dcur.collarA.Nom) : "");
+        setMaxv(dcur.collarA.Max != null ? String(dcur.collarA.Max) : "");
+        setDies(upper(dcur.collarA.Dies ?? ""));
+        setCrimp(upper(dcur.collarA.Crimp ?? ""));
       } else {
-        //! Nuevo: sin bloqueo de Item
         setIsEditing(false);
       }
     } catch (e) {
@@ -107,6 +107,7 @@ export default function HoseCutPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assemblyItem]);
 
   async function onSubmit(e) {
@@ -115,34 +116,36 @@ export default function HoseCutPage() {
       showWarning("Falta el Assembly Item en la ruta");
       return;
     }
-    if (!item) {
-      showWarning("Item es requerido");
+    // Validaciones mínimas en cliente
+    if (!isEditing && !item) {
+      showWarning("Item es obligatorio");
+      return;
+    }
+    if (!description || !minv || !nom || !maxv || !dies || !crimp) {
+      showWarning("Todos los campos son obligatorios");
       return;
     }
 
     setLoading(true);
     try {
-      const r = await fetch("/api/hose", {
+      const r = await fetch("/api/collar-a", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assemblyItem,
-          item: Number(item),                    //* aunque esté bloqueado en edición, se envía
-          description: description.trim(),
-          min: minv === "" ? null : Number(minv),
-          max: maxv === "" ? null : Number(maxv),
-          nom: nom === "" ? null : Number(nom),
-          clea: clea.trim() || null,
+          item: isEditing ? null : Number(item), // requerido sólo al crear
+          description: upper(description),
+          min: Number(minv),
+          max: Number(maxv),
+          nom: Number(nom),
+          dies: upper(dies),
+          crimp: upper(crimp),
         }),
       });
       const d = await r.json();
       if (!r.ok || !d?.ok) throw new Error(d?.error || "No se pudo guardar");
 
-      showSuccess(
-        `${isEditing ? "Hose actualizado" : "Hose guardado"} (Item ${d.hose.item}). Adds actualizado en Assembly #${d.assembly.item}`
-      );
-
-      //* Regresar a la pantalla anterior con el assembly activo
+      showSuccess(`${isEditing ? "Collar A actualizado" : "Collar A guardado"}.`);
       setTimeout(() => backToNew(), 900);
     } catch (e) {
       showError(e.message);
@@ -150,6 +153,9 @@ export default function HoseCutPage() {
       setLoading(false);
     }
   }
+
+  // Check if all required fields are filled
+  const isFormValid = (!isEditing ? item : true) && description && minv && nom && maxv && dies && crimp;
 
   if (assemblyItem == null) {
     return (
@@ -176,17 +182,17 @@ export default function HoseCutPage() {
 
   if (loadingMeta) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-amber-50 to-orange-50 dark:from-slate-950 dark:via-amber-950 dark:to-orange-950 grid place-items-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-violet-50 dark:from-slate-950 dark:via-purple-950 dark:to-violet-950 grid place-items-center">
         <div className="text-center">
           <div className="relative">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-purple-500 to-violet-500 flex items-center justify-center">
               <Loader2 className="w-8 h-8 animate-spin text-white" />
             </div>
-            <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-amber-500 to-orange-500 animate-pulse opacity-50"></div>
+            <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-purple-500 to-violet-500 animate-pulse opacity-50"></div>
           </div>
-          <p className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Cargando datos de Hose…</p>
+          <p className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Cargando datos de Collar A…</p>
           <p className="text-slate-500 dark:text-slate-500 text-xs mt-1">
-            Preparando formulario de corte
+            Preparando configuración de collar
           </p>
         </div>
       </div>
@@ -194,15 +200,15 @@ export default function HoseCutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-amber-50 to-orange-100 dark:from-slate-950 dark:via-amber-950 dark:to-orange-950">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 dark:from-slate-950 dark:via-purple-950 dark:to-violet-950">
       {/* Decorative background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-amber-400/15 to-orange-600/15 blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-tr from-yellow-400/15 to-amber-600/15 blur-3xl"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-purple-400/15 to-violet-600/15 blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-tr from-indigo-400/15 to-purple-600/15 blur-3xl"></div>
       </div>
 
       {/* Enhanced Topbar */}
-      <header className="relative border-b border-slate-200/60 dark:border-slate-800/60 bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 text-white shadow-lg">
+      <header className="relative border-b border-slate-200/60 dark:border-slate-800/60 bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white shadow-lg">
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -218,18 +224,18 @@ export default function HoseCutPage() {
               </button>
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-white/15 backdrop-blur-sm">
-                  <Scissors className="w-6 h-6" />
+                  <Shield className="w-6 h-6" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold">Hose Cut</h1>
-                  <p className="text-white/80 text-xs">Configuración de corte de manguera</p>
+                  <h1 className="text-xl font-bold">Collar A</h1>
+                  <p className="text-white/80 text-xs">Configuración de collar protector</p>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
               {isEditing && (
-                <div className="flex items-center gap-2 text-xs bg-amber-500/90 text-white px-3 py-2 rounded-lg border border-amber-400">
+                <div className="flex items-center gap-2 text-xs bg-purple-500/90 text-white px-3 py-2 rounded-lg border border-purple-400">
                   <Edit3 className="w-4 h-4" />
                   <span>Modo Edición</span>
                 </div>
@@ -247,7 +253,7 @@ export default function HoseCutPage() {
       <main className="relative max-w-6xl mx-auto px-4 py-8">
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
           {/* Enhanced Form Header */}
-          <div className="relative p-6 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white">
+          <div className="relative p-6 bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -256,52 +262,63 @@ export default function HoseCutPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold">
-                    {isEditing ? "Editar Datos de Hose" : "Configurar Hose Cut"}
+                    {isEditing ? "Editar Collar A" : "Configurar Collar A"}
                   </h2>
                   <p className="text-white/90 text-sm">
-                    {isEditing ? "Modifica los parámetros existentes" : "Define los parámetros de corte de manguera"}
+                    {isEditing ? "Modifica los parámetros del collar protector" : "Define los parámetros del collar de protección"}
                   </p>
                 </div>
               </div>
               <div className="hidden sm:block text-xs text-white/80 bg-white/15 px-3 py-2 rounded-lg backdrop-blur-sm">
                 <div className="flex items-center gap-1">
                   <Zap className="w-3 h-3" />
-                  <span>El <b>Item</b> se agregará automáticamente a <b>Adds</b></span>
+                  <span>El <b>Item</b> se agregará a <b>Adds[4]</b> al crear</span>
                 </div>
               </div>
             </div>
           </div>
 
           <form onSubmit={onSubmit} className="p-8 space-y-8">
+            {/* Required Fields Alert */}
+            <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
+              <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <p className="text-sm font-medium">
+                  Todos los campos son obligatorios para el Collar A
+                </p>
+              </div>
+            </div>
+
             {/* Enhanced Item Field */}
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500"></div>
-                Item del Hose
-                {isEditing && <span className="text-xs text-amber-600 dark:text-amber-400">(Solo lectura)</span>}
+                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-purple-500 to-violet-500"></div>
+                Item del Collar A
+                {!isEditing && <span className="text-red-500">*</span>}
+                {isEditing && <span className="text-xs text-purple-600 dark:text-purple-400">(Solo lectura)</span>}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Hash className={`h-5 w-5 ${isEditing ? 'text-amber-500' : 'text-slate-500 dark:text-slate-400'}`} />
+                  <Hash className={`h-5 w-5 ${isEditing ? 'text-purple-500' : 'text-slate-500 dark:text-slate-400'}`} />
                 </div>
                 <input
                   value={item}
                   onChange={(e) => setItem(e.target.value.replace(/\D/g, ""))}
                   inputMode="numeric"
-                  placeholder="Ej. 788828"
-                  required
+                  placeholder="Ej. 12345678"
+                  required={!isEditing}
                   readOnly={isEditing}
                   className={`w-full pl-12 pr-4 py-4 rounded-xl border-2 text-slate-900 dark:text-slate-100
                              transition-all duration-200
                              ${isEditing 
-                               ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800 cursor-not-allowed" 
-                               : "bg-white dark:bg-slate-950/50 border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500"
+                               ? "bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800 cursor-not-allowed" 
+                               : "bg-white dark:bg-slate-950/50 border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500"
                              }`}
                 />
               </div>
               <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                 <Info className="w-3 h-3" />
-                <span>Ejemplos recientes: {examples.items.slice(0, 3).join(" • ") || "Cargando..."}</span>
+                <span>Se agregará a Adds[4]. Ejemplos: {examples.items.slice(0, 3).join(" • ") || "Cargando..."}</span>
               </div>
             </div>
 
@@ -309,7 +326,8 @@ export default function HoseCutPage() {
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500"></div>
-                Descripción del Corte
+                Descripción del Collar
+                <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -318,10 +336,10 @@ export default function HoseCutPage() {
                 <input
                   value={description}
                   onChange={(e) => setDescription(e.target.value.toUpperCase())}
-                  placeholder="Ej. Corte de manguera TF-A para sistema hidráulico"
+                  placeholder="DESCRIPCIÓN DEL COLLAR EN MAYÚSCULAS"
                   required
                   className="w-full pl-12 pr-4 py-4 rounded-xl border-2 bg-white dark:bg-slate-950/50
-                             text-slate-900 dark:text-slate-100
+                             text-slate-900 dark:text-slate-100 uppercase
                              border-slate-200 dark:border-slate-700
                              focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
                              transition-all duration-200"
@@ -329,7 +347,7 @@ export default function HoseCutPage() {
               </div>
               <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                 <Info className="w-3 h-3" />
-                <span>Ejemplos: {examples.descriptions.slice(0, 3).join(" • ") || "Cargando..."}</span>
+                <span>Se convierte automáticamente a mayúsculas. Ejemplos: {examples.descriptions.slice(0, 3).join(" • ") || "Cargando..."}</span>
               </div>
             </div>
 
@@ -337,20 +355,25 @@ export default function HoseCutPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-500"></div>
-                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Medidas de Corte</h3>
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Medidas del Collar
+                  <span className="text-red-500 ml-1">*</span>
+                </h3>
               </div>
               <div className="grid sm:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <Ruler className="w-4 h-4 text-green-500" />
                     Mínimo
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     value={minv}
                     onChange={(e) => setMinv(numericFilter(e.target.value))}
                     inputMode="decimal"
-                    placeholder="0.00"
                     pattern="^\d*\.?\d*$"
+                    placeholder="0.00"
+                    required
                     className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
                                text-slate-900 dark:text-slate-100
                                border-slate-200 dark:border-slate-700
@@ -362,13 +385,15 @@ export default function HoseCutPage() {
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <Ruler className="w-4 h-4 text-blue-500" />
                     Nominal
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     value={nom}
                     onChange={(e) => setNom(numericFilter(e.target.value))}
                     inputMode="decimal"
-                    placeholder="0.00"
                     pattern="^\d*\.?\d*$"
+                    placeholder="0.00"
+                    required
                     className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
                                text-slate-900 dark:text-slate-100
                                border-slate-200 dark:border-slate-700
@@ -380,13 +405,15 @@ export default function HoseCutPage() {
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <Ruler className="w-4 h-4 text-red-500" />
                     Máximo
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     value={maxv}
                     onChange={(e) => setMaxv(numericFilter(e.target.value))}
                     inputMode="decimal"
-                    placeholder="0.00"
                     pattern="^\d*\.?\d*$"
+                    placeholder="0.00"
+                    required
                     className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
                                text-slate-900 dark:text-slate-100
                                border-slate-200 dark:border-slate-700
@@ -397,38 +424,76 @@ export default function HoseCutPage() {
               </div>
             </div>
 
-            {/* Enhanced Clea Field */}
-            <div className="space-y-3">
-              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-purple-500 to-violet-500"></div>
-                Clea (Información Adicional)
-              </label>
-              <textarea
-                value={clea}
-                onChange={(e) => setClea(e.target.value.toUpperCase())}
-                placeholder="Información adicional, notas especiales o características del corte..."
-                rows={3}
-                className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
-                           text-slate-900 dark:text-slate-100
-                           border-slate-200 dark:border-slate-700
-                           focus:outline-none focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500
-                           transition-all duration-200 resize-none"
-              />
-              <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                <Info className="w-3 h-3" />
-                <span>Ejemplos: {examples.cleas.slice(0, 3).join(" • ") || "Cargando..."}</span>
+            {/* Enhanced Configuration Fields */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-orange-500 to-amber-500"></div>
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Configuración del Collar
+                  <span className="text-red-500 ml-1">*</span>
+                </h3>
+              </div>
+              
+              <div className="grid sm:grid-cols-2 gap-6">
+                {/* Dies Field */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
+                    <Wrench className="w-4 h-4 text-orange-500" />
+                    Dies (Matrices)
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    value={dies}
+                    onChange={(e) => setDies(e.target.value.toUpperCase())}
+                    placeholder="MATRIZ COLLAR, DIES A, HERRAMIENTAS"
+                    required
+                    className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
+                               text-slate-900 dark:text-slate-100 uppercase
+                               border-slate-200 dark:border-slate-700
+                               focus:outline-none focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500
+                               transition-all duration-200"
+                  />
+                  <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                    <Info className="w-3 h-3" />
+                    <span>Ejemplos: {examples.dies.slice(0, 3).join(" • ") || "Cargando..."}</span>
+                  </div>
+                </div>
+
+                {/* Crimp Field */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
+                    <Settings className="w-4 h-4 text-amber-500" />
+                    Tipo de Crimp
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    value={crimp}
+                    onChange={(e) => setCrimp(e.target.value.toUpperCase())}
+                    placeholder="NORMAL, ESPECIAL, REFORZADO"
+                    required
+                    className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
+                               text-slate-900 dark:text-slate-100 uppercase
+                               border-slate-200 dark:border-slate-700
+                               focus:outline-none focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500
+                               transition-all duration-200"
+                  />
+                  <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                    <Info className="w-3 h-3" />
+                    <span>Ejemplos: {examples.crimps.slice(0, 3).join(" • ") || "Cargando..."}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Enhanced Submit Button */}
             <div className="flex justify-end pt-6">
               <button
-                disabled={loading}
+                disabled={loading || !isFormValid}
                 type="submit"
                 className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-xl
-                           bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 text-white
-                           hover:from-amber-500 hover:via-orange-500 hover:to-red-500
-                           focus:outline-none focus:ring-4 focus:ring-amber-500/20
+                           bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white
+                           hover:from-purple-500 hover:via-violet-500 hover:to-indigo-500
+                           focus:outline-none focus:ring-4 focus:ring-purple-500/20
                            disabled:opacity-50 disabled:cursor-not-allowed
                            transform hover:scale-105 transition-all duration-200
                            shadow-lg hover:shadow-xl font-semibold text-lg"
@@ -441,7 +506,7 @@ export default function HoseCutPage() {
                 ) : (
                   <>
                     {isEditing ? <Edit3 className="w-5 h-5 group-hover:scale-110 transition-transform" /> : <Save className="w-5 h-5 group-hover:scale-110 transition-transform" />}
-                    {isEditing ? "Actualizar Hose Cut" : "Guardar Hose Cut"}
+                    {isEditing ? "Actualizar Collar A" : "Guardar Collar A"}
                     <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
                   </>
                 )}
@@ -451,28 +516,32 @@ export default function HoseCutPage() {
           </form>
         </div>
 
-        {/* Info Card */}
-        <div className="mt-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 shadow-lg p-6">
+        {/* Enhanced Info Card */}
+        <div className="mt-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/20 dark:to-violet-950/20 shadow-lg p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-amber-500 text-white">
-              <Info className="w-4 h-4" />
+            <div className="p-2 rounded-lg bg-purple-500 text-white">
+              <Shield className="w-4 h-4" />
             </div>
             <h4 className="font-bold text-slate-900 dark:text-slate-100">
-              Información del Proceso
+              Información del Collar A
             </h4>
           </div>
           <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
             <li className="flex items-start gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-2 flex-shrink-0"></div>
+              <span>El <strong>Item</strong> se agrega automáticamente como cuarto elemento (<strong>Adds[4]</strong>) del Assembly al crear un nuevo registro.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-2 flex-shrink-0"></div>
+              <span><strong>Todos los campos son obligatorios</strong> para el Collar A, incluyendo Item (solo al crear), Description, Min/Nom/Max, Dies y Crimp.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 flex-shrink-0"></div>
+              <span>Los campos <strong>Description</strong>, <strong>Dies</strong> y <strong>Crimp</strong> se convierten automáticamente a mayúsculas.</span>
+            </li>
+            <li className="flex items-start gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 flex-shrink-0"></div>
-              <span>El <strong>Item</strong> especificado se agregará automáticamente como primer elemento en el campo <strong>Adds</strong> del Assembly.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-2 flex-shrink-0"></div>
-              <span>Las medidas <strong>Min</strong>, <strong>Nom</strong> y <strong>Max</strong> definen los parámetros de tolerancia para el corte.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-2 flex-shrink-0"></div>
-              <span>Use el campo <strong>Clea</strong> para agregar notas especiales o características del proceso de corte.</span>
+              <span>En modo edición, el campo <strong>Item</strong> es de solo lectura para mantener la integridad de los datos del Assembly.</span>
             </li>
           </ul>
         </div>

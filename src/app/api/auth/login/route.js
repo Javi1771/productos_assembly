@@ -1,4 +1,3 @@
-// src/app/api/auth/login/route.js
 import { NextResponse } from "next/server";
 import { getPool, MSSQL } from "@/lib/mssql";
 import bcrypt from "bcryptjs";
@@ -71,7 +70,7 @@ export async function POST(req) {
 
     const pool = await getPool();
 
-    // 1) Inspeccionar columnas reales
+    //? 1) Inspeccionar columnas reales
     console.time("[login] inspect columns");
     const cols = await getTableColumns(pool, SCHEMA, TABLE);
     console.timeEnd("[login] inspect columns");
@@ -91,7 +90,7 @@ export async function POST(req) {
       );
     }
 
-    // 2) Buscar por correo usando el nombre real de columna
+    //? 2) Buscar por correo usando el nombre real de columna
     console.time("[login] sql:findUserByEmail");
     const sqlQuery = `
       SELECT TOP 1 *
@@ -124,7 +123,7 @@ export async function POST(req) {
       passwordHashMode: hashed ? "bcrypt" : "plaintext",
     });
 
-    // 3) Validar contraseña
+    //? 3) Validar contraseña
     let ok = false;
     if (hashed) {
       console.time("[login] bcrypt.compareSync");
@@ -140,7 +139,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
     }
 
-    // 4) Éxito
+    //? 4) Éxito
     console.log("[login] login exitoso:", { id: idCol ? user[idCol] : null, correo: user[emailCol] });
 
     return NextResponse.json({

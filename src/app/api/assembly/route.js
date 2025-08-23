@@ -1,10 +1,9 @@
-// src/app/api/assembly/route.js
 import { NextResponse } from "next/server";
 import { getPool, MSSQL } from "@/lib/mssql";
 
 export const runtime = "nodejs";
 
-// Orden canónico de Adds (7 módulos)
+//* Orden canónico de Adds (7 módulos)
 export const ADDS_ORDER = [
   "Hose Cut",
   "Sleeve/Guard cut",
@@ -15,7 +14,7 @@ export const ADDS_ORDER = [
   "Packaging",
 ];
 
-/** GET /api/assembly -> { nextItem } */
+//* GET /api/assembly -> { nextItem } */
 export async function GET() {
   try {
     const pool = await getPool();
@@ -35,7 +34,8 @@ export async function GET() {
   }
 }
 
-/** POST /api/assembly
+/*
+ * POST /api/assembly
  * body: { descripcion, customer, nci, customerRev }
  */
 export async function POST(req) {
@@ -53,13 +53,13 @@ export async function POST(req) {
   const pool = await getPool();
   const tx = new MSSQL.Transaction(pool);
 
-  // Adds por defecto: 7 posiciones en 0 (una por módulo)
+  //* Adds por defecto: 7 posiciones en 0 (una por módulo)
   const defaultAdds = ADDS_ORDER.map(() => "0").join("|");
 
   try {
     await tx.begin();
 
-    // Cálculo serializado del siguiente Item
+    //* Cálculo serializado del siguiente Item
     const lockReq = new MSSQL.Request(tx);
     const nextRes = await lockReq.query(`
       SELECT ISNULL(MAX(TRY_CAST([Item] AS INT)), 0) + 1 AS nextItem

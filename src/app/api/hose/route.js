@@ -1,17 +1,16 @@
-// src/app/api/hose/route.js
 import { NextResponse } from "next/server";
-import { getPool, MSSQL } from "@/lib/mssql"; // si da error, usa "@/lib/mssql.js"
+import { getPool, MSSQL } from "@/lib/mssql";
 
 export const runtime = "nodejs";
 
-// Normaliza Adds a 5 segmentos mínimo
+//* Normaliza Adds a 5 segmentos mínimo
 function normalizeAdds(adds) {
   const parts = (adds ?? "").split("|");
   while (parts.length < 5) parts.push("0");
   return parts;
 }
 
-/** GET /api/hose?assemblyItem=123  (o)  /api/hose?item=788828 */
+//** GET /api/hose?assemblyItem=123  (o)  /api/hose?item=788828 */
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -22,7 +21,7 @@ export async function GET(req) {
 
     let hoseItem = Number.isFinite(item) ? item : null;
 
-    // Si no dieron ?item, buscar el que está en Adds[0] del Assembly
+    //! Si no dieron ?item, buscar el que está en Adds[0] del Assembly
     if (!hoseItem && Number.isFinite(assemblyItem)) {
       const rAsm = await pool
         .request()
@@ -57,12 +56,12 @@ export async function GET(req) {
   }
 }
 
-/** POST /api/hose  -> upsert con preferencia a editar lo que ya está ligado en Adds[0] */
+//** POST /api/hose  -> upsert con preferencia a editar lo que ya está ligado en Adds[0] */
 export async function POST(req) {
   try {
     const body = await req.json();
     const assemblyItem = Number(body.assemblyItem);
-    const item = Number(body.item); // nuevo/actual Item de Hose
+    const item = Number(body.item); //* nuevo/actual Item de Hose
     const desc = String(body.description ?? "");
     const min = body.min == null || body.min === "" ? null : Number(body.min);
     const max = body.max == null || body.max === "" ? null : Number(body.max);
@@ -83,7 +82,7 @@ export async function POST(req) {
     try {
       const rtx = new MSSQL.Request(tx);
 
-      // Bloquear la fila del assembly para leer/modificar Adds de forma segura
+      //! Bloquear la fila del assembly para leer/modificar Adds de forma segura
       const rAsm = await rtx
         .input("asmItem", MSSQL.Int, assemblyItem)
         .query(`
@@ -103,7 +102,7 @@ export async function POST(req) {
       let folio = null;
 
       if (Number.isFinite(oldHoseItem) && oldHoseItem > 0) {
-        // EDITAR el hose ya vinculado en Adds[0]
+        //* EDITAR el hose ya vinculado en Adds[0]
         const upd = await rtx
           .input("oldItem", MSSQL.Int, oldHoseItem)
           .input("newItem", MSSQL.Int, item)
@@ -129,7 +128,7 @@ export async function POST(req) {
           mode = "updated";
           folio = upd.recordset[0]?.Folio ?? null;
         } else {
-          // Si no existía por oldItem (caso raro), intentar por newItem...
+          //! Si no existía por oldItem (caso raro), intentar por newItem...
           const hasNew = await rtx
             .input("newItem2", MSSQL.Int, item)
             .query(`SELECT TOP 1 [Folio] FROM [dbo].[Hose] WHERE [Item]=@newItem2 ORDER BY [Folio] DESC`);
@@ -150,7 +149,7 @@ export async function POST(req) {
             mode = "updated";
             folio = hasNew.recordset[0].Folio;
           } else {
-            // ...y si tampoco, insertamos
+            //! ...y si tampoco, insertamos
             const next = await rtx.query(`SELECT ISNULL(MAX([Folio]),0)+1 AS next FROM [dbo].[Hose]`);
             const nextFolio = next.recordset[0].next;
 
@@ -171,7 +170,7 @@ export async function POST(req) {
           }
         }
       } else {
-        // Assembly no tenía Hose previo: upsert por item enviado
+        //* Assembly no tenía Hose previo: upsert por item enviado
         const has = await rtx
           .input("it", MSSQL.Int, item)
           .query(`SELECT TOP 1 [Folio] FROM [dbo].[Hose] WHERE [Item]=@it ORDER BY [Folio] DESC`);
@@ -212,7 +211,7 @@ export async function POST(req) {
         }
       }
 
-      // Actualiza Adds[0] del Assembly al item enviado
+      //* Actualiza Adds[0] del Assembly al item enviado
       addsParts[0] = String(item);
       const newAdds = addsParts.join("|");
 

@@ -3,7 +3,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, Eye, EyeOff, User, ShieldCheck } from "lucide-react";
+import { 
+  Mail, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  User, 
+  ShieldCheck, 
+  Loader2, 
+  Sparkles,
+  ArrowRight,
+  KeyRound,
+  Building,
+  CheckCircle
+} from "lucide-react";
 import { useAlert } from "@/components/AlertSystem";
 
 export default function LoginPage() {
@@ -36,115 +49,194 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-gradient-to-br
-                 from-[var(--grad-from)] to-[var(--grad-to)]
-                 flex items-center justify-center p-4"
-    >
-      <div className="w-full max-w-md">
-        {/* Header con logo/icono */}
-        <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
-            <ShieldCheck className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-[var(--fg)] mb-2">
-            Bienvenido
-          </h1>
-          <p className="text-[var(--muted)]">
-            Inicia sesión para continuar
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-gradient-to-br from-indigo-400/20 to-violet-600/20 blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-gradient-to-tr from-blue-400/20 to-cyan-600/20 blur-3xl animate-pulse"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-gradient-to-r from-purple-400/10 to-pink-600/10 blur-2xl"></div>
+      </div>
 
-        {/* Formulario */}
-        <form
-          onSubmit={onSubmit}
-          className="rounded-2xl shadow-xl border p-8 space-y-6
-                     bg-[var(--card)] text-[var(--card-foreground)] border-[var(--border)]"
-        >
-          {/* Campo de correo */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium">
-              Correo electrónico
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-[var(--muted)]" />
-              </div>
-              <input
-                type="email"
-                autoComplete="email"
-                value={correo}
-                onChange={(e) => setCorreo(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-lg outline-none
-                           border bg-[var(--card)] text-[var(--card-foreground)] border-[var(--border)]
-                           focus:ring-2 focus:ring-[var(--ring)] focus:border-[var(--ring)]"
-                placeholder="tu@email.com"
-                required
-              />
+      {/* Floating particles effect */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(20)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-1 h-1 bg-indigo-400/30 rounded-full animate-pulse"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 3}s`,
+              animationDuration: `${2 + Math.random() * 2}s`
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="w-full max-w-md relative z-10">
+        {/* Enhanced Header */}
+        <div className="text-center mb-10">
+          <div className="relative mx-auto w-20 h-20 mb-6">
+            {/* Main logo container with animated rings */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 via-indigo-600 to-violet-600 animate-spin" style={{ animationDuration: '8s' }}>
+              <div className="absolute inset-1 rounded-full bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-950 dark:to-indigo-950"></div>
+            </div>
+            <div className="absolute inset-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-600 flex items-center justify-center shadow-2xl">
+              <ShieldCheck className="w-8 h-8 text-white drop-shadow-lg" />
+            </div>
+            {/* Glowing effect */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-violet-600 blur-lg opacity-50 animate-pulse"></div>
+          </div>
+
+          <div className="space-y-3">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-indigo-800 to-violet-800 dark:from-slate-100 dark:via-indigo-200 dark:to-violet-200 bg-clip-text text-transparent">
+              Bienvenido de Vuelta
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400 text-lg">
+              Accede a tu sistema de gestión
+            </p>
+            <div className="flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-500">
+              <Building className="w-4 h-4" />
+              <span>Sistema de Assembly y Producción</span>
             </div>
           </div>
+        </div>
 
-          {/* Campo de contraseña */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium">
-              Contraseña
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-[var(--muted)]" />
+        {/* Enhanced Form Card */}
+        <div className="relative">
+          {/* Background glow */}
+          <div className="absolute -inset-4 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-600 rounded-3xl blur-xl opacity-20 animate-pulse"></div>
+          
+          <form
+            onSubmit={onSubmit}
+            className="relative rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-8 space-y-8 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl"
+          >
+            {/* Form header */}
+            <div className="text-center pb-2">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-indigo-100 to-violet-100 dark:from-indigo-950 dark:to-violet-950 text-indigo-700 dark:text-indigo-300 text-sm font-medium">
+                <KeyRound className="w-4 h-4" />
+                Autenticación Segura
               </div>
-              <input
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-12 py-3 rounded-lg outline-none
-                           border bg-[var(--card)] text-[var(--card-foreground)] border-[var(--border)]
-                           focus:ring-2 focus:ring-[var(--ring)] focus:border-[var(--ring)]"
-                placeholder="••••••••"
-                required
-              />
+            </div>
+
+            {/* Enhanced Email Field */}
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+                Correo Electrónico
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-slate-500 dark:text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                </div>
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={correo}
+                  onChange={(e) => setCorreo(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 rounded-xl border-2 bg-white dark:bg-slate-950/50 
+                             text-slate-900 dark:text-slate-100 
+                             border-slate-200 dark:border-slate-700
+                             focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500
+                             placeholder-slate-400 dark:placeholder-slate-500
+                             transition-all duration-200 backdrop-blur-sm"
+                  placeholder="tu@empresa.com"
+                  required
+                />
+                <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-indigo-500 to-transparent scale-x-0 group-focus-within:scale-x-100 transition-transform duration-300"></div>
+              </div>
+            </div>
+
+            {/* Enhanced Password Field */}
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-violet-500 to-purple-500"></div>
+                Contraseña
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-violet-500 transition-colors" />
+                </div>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-12 pr-14 py-4 rounded-xl border-2 bg-white dark:bg-slate-950/50
+                             text-slate-900 dark:text-slate-100
+                             border-slate-200 dark:border-slate-700
+                             focus:outline-none focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500
+                             placeholder-slate-400 dark:placeholder-slate-500
+                             transition-all duration-200 backdrop-blur-sm"
+                  placeholder="Tu contraseña segura"
+                  required
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-violet-500 transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+                <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-violet-500 to-transparent scale-x-0 group-focus-within:scale-x-100 transition-transform duration-300"></div>
+              </div>
+            </div>
+
+            {/* Enhanced Submit Button */}
+            <div className="pt-4">
               <button
-                type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-[var(--muted)] hover:opacity-80"
-                onClick={() => setShowPassword(!showPassword)}
+                disabled={loading}
+                className="group relative w-full bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 text-white 
+                           py-4 px-6 rounded-xl font-semibold text-lg
+                           hover:from-indigo-500 hover:via-violet-500 hover:to-purple-500 
+                           focus:outline-none focus:ring-4 focus:ring-indigo-500/20
+                           disabled:opacity-50 disabled:cursor-not-allowed
+                           transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]
+                           shadow-lg hover:shadow-2xl overflow-hidden"
               >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5" />
+                {/* Button background effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                
+                {loading ? (
+                  <div className="relative flex items-center justify-center">
+                    <Loader2 className="animate-spin w-6 h-6 mr-3" />
+                    <span>Verificando credenciales...</span>
+                  </div>
                 ) : (
-                  <Eye className="h-5 w-5" />
+                  <div className="relative flex items-center justify-center">
+                    <User className="w-6 h-6 mr-3 group-hover:scale-110 transition-transform" />
+                    <span>Iniciar Sesión</span>
+                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </div>
                 )}
               </button>
             </div>
-          </div>
 
-          {/* Botón de envío */}
-          <button
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white 
-                       py-3 px-4 rounded-lg font-medium
-                       hover:from-blue-600 hover:to-indigo-700 
-                       focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2 focus:ring-offset-[var(--bg)]
-                       disabled:opacity-50 disabled:cursor-not-allowed
-                       transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]
-                       shadow-lg hover:shadow-xl"
-          >
-            {loading ? (
-              <div className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Iniciando sesión...
+            {/* Security badges */}
+            <div className="pt-4 flex items-center justify-center gap-6 text-xs text-slate-500 dark:text-slate-500">
+              <div className="flex items-center gap-1">
+                <CheckCircle className="w-3 h-3 text-green-500" />
+                <span>Conexión segura</span>
               </div>
-            ) : (
-              <div className="flex items-center justify-center">
-                <User className="w-5 h-5 mr-2" />
-                Iniciar sesión
+              <div className="flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3 text-blue-500" />
+                <span>Datos protegidos</span>
               </div>
-            )}
-          </button>
-        </form>
+            </div>
+          </form>
+        </div>
+
+        {/* Footer info */}
+        <div className="mt-8 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-400">
+            <Sparkles className="w-4 h-4 text-indigo-500" />
+            <span>Sistema de gestión empresarial</span>
+          </div>
+        </div>
       </div>
     </div>
   );

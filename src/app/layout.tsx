@@ -1,10 +1,9 @@
-// src/app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AlertProvider } from "@/components/AlertSystem";
 import "./globals.css";
 import ThemeToggleGlobal from "@/components/ThemeToggleGlobal";
-import Providers from "./providers"; // <-- FALTABA ESTO
+import Providers from "./providers"; 
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });

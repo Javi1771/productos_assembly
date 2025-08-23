@@ -1,11 +1,10 @@
-// src/app/api/assembly/[item]/adds/route.js
 import { NextResponse } from "next/server";
 import { getPool, MSSQL } from "@/lib/mssql";
 import { ADDS_ORDER } from "@/app/api/assembly/route";
 
 export const runtime = "nodejs";
 
-/**
+/*
  * PATCH /api/assembly/:item/adds
  * body: { module?: string, index?: number, subId: string|number }
  *   - Usa "module" con uno de ADDS_ORDER o "index" (0..6)
@@ -41,7 +40,7 @@ export async function PATCH(_req, { params }) {
   try {
     await tx.begin();
 
-    // 1) Leer Adds con bloqueo de fila
+    //? 1) Leer Adds con bloqueo de fila
     const sel = await new MSSQL.Request(tx)
       .input("Item", MSSQL.Int, item)
       .query(`
@@ -55,21 +54,21 @@ export async function PATCH(_req, { params }) {
       return NextResponse.json({ ok: false, error: "Assembly no encontrado" }, { status: 404 });
     }
 
-    // 2) Normalizar arreglo
+    //? 2) Normalizar arreglo
     const current = String(sel.recordset[0].Adds ?? "");
     let parts = current.split("|").filter(() => true);
-    // Asegurar longitud exacta
+    //* Asegurar longitud exacta
     if (parts.length < ADDS_ORDER.length) {
       parts = [...parts, ...Array(ADDS_ORDER.length - parts.length).fill("0")];
     } else if (parts.length > ADDS_ORDER.length) {
       parts = parts.slice(0, ADDS_ORDER.length);
     }
 
-    // 3) Actualizar posición
+    //? 3) Actualizar posición
     parts[idx] = String(subId ?? "0");
     const newAdds = parts.join("|");
 
-    // 4) Guardar
+    //? 4) Guardar
     await new MSSQL.Request(tx)
       .input("Item", MSSQL.Int, item)
       .input("Adds", MSSQL.NVarChar(400), newAdds)
@@ -89,7 +88,7 @@ export async function PATCH(_req, { params }) {
   }
 }
 
-/** GET /api/assembly/:item/adds -> estado actual de Adds */
+//* GET /api/assembly/:item/adds -> estado actual de Adds */
 export async function GET(_req, { params }) {
   const item = Number(params.item);
   if (!item) {

@@ -1,6 +1,5 @@
-// src/app/api/hose/examples/route.js
 import { NextResponse } from "next/server";
-import { getPool } from "@/lib/mssql"; // si te da problema, usa "@/lib/mssql.js"
+import { getPool } from "@/lib/mssql"; 
 
 export const runtime = "nodejs";
 
@@ -8,7 +7,7 @@ export async function GET() {
   try {
     const pool = await getPool();
 
-    // Para columnas de texto
+    //* Para columnas de texto
     const qText = (col) => `
       SELECT TOP 8 ${col} AS v, COUNT(*) AS cnt
       FROM [dbo].[Hose]
@@ -17,7 +16,7 @@ export async function GET() {
       ORDER BY COUNT(*) DESC
     `;
 
-    // Para columna numérica (Item): casteamos a texto solo para agrupar y contar
+    //* Para columna numérica (Item): casteamos a texto solo para agrupar y contar
     const qNum = (col) => `
       SELECT TOP 8 CAST(${col} AS NVARCHAR(50)) AS v, COUNT(*) AS cnt
       FROM [dbo].[Hose]
