@@ -1,31 +1,45 @@
-// src/app/login/page.jsx
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  User, 
-  ShieldCheck, 
-  Loader2, 
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  User,
+  ShieldCheck,
+  Loader2,
   Sparkles,
   ArrowRight,
   KeyRound,
   Building,
-  CheckCircle
+  CheckCircle,
 } from "lucide-react";
 import { useAlert } from "@/components/AlertSystem";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { showSuccess, showError } = useAlert();
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  //* Al entrar a /login, borra la cookie de sesión (fallback cliente)
+  useEffect(() => {
+    (async () => {
+      try {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          credentials: "same-origin",
+        });
+      } catch {
+        //! ignorar; el middleware también la elimina
+      }
+    })();
+  }, []);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -34,13 +48,19 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ correo, password }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Error de login");
 
       showSuccess("¡Bienvenido! Sesión iniciada correctamente");
-      setTimeout(() => router.replace("/assembly/new"), 1000);
+
+      //* Soporta redirección a ?next=/ruta/protegida
+      const next = searchParams.get("next");
+      const dest = next && next.startsWith("/") ? next : "/assembly/new";
+
+      setTimeout(() => router.replace(dest), 700);
     } catch (e) {
       showError(e.message, "Error de Autenticación");
     } finally {
@@ -67,7 +87,7 @@ export default function LoginPage() {
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
               animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${2 + Math.random() * 2}s`
+              animationDuration: `${2 + Math.random() * 2}s`,
             }}
           />
         ))}
@@ -77,14 +97,15 @@ export default function LoginPage() {
         {/* Enhanced Header */}
         <div className="text-center mb-10">
           <div className="relative mx-auto w-20 h-20 mb-6">
-            {/* Main logo container with animated rings */}
-            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 via-indigo-600 to-violet-600 animate-spin" style={{ animationDuration: '8s' }}>
+            <div
+              className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 via-indigo-600 to-violet-600 animate-spin"
+              style={{ animationDuration: "8s" }}
+            >
               <div className="absolute inset-1 rounded-full bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-950 dark:to-indigo-950"></div>
             </div>
             <div className="absolute inset-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-600 flex items-center justify-center shadow-2xl">
               <ShieldCheck className="w-8 h-8 text-white drop-shadow-lg" />
             </div>
-            {/* Glowing effect */}
             <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-violet-600 blur-lg opacity-50 animate-pulse"></div>
           </div>
 
@@ -104,14 +125,12 @@ export default function LoginPage() {
 
         {/* Enhanced Form Card */}
         <div className="relative">
-          {/* Background glow */}
           <div className="absolute -inset-4 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-600 rounded-3xl blur-xl opacity-20 animate-pulse"></div>
-          
+
           <form
             onSubmit={onSubmit}
             className="relative rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-8 space-y-8 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl"
           >
-            {/* Form header */}
             <div className="text-center pb-2">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-indigo-100 to-violet-100 dark:from-indigo-950 dark:to-violet-950 text-indigo-700 dark:text-indigo-300 text-sm font-medium">
                 <KeyRound className="w-4 h-4" />
@@ -119,7 +138,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Enhanced Email Field */}
+            {/* Email */}
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500"></div>
@@ -134,12 +153,7 @@ export default function LoginPage() {
                   autoComplete="email"
                   value={correo}
                   onChange={(e) => setCorreo(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 rounded-xl border-2 bg-white dark:bg-slate-950/50 
-                             text-slate-900 dark:text-slate-100 
-                             border-slate-200 dark:border-slate-700
-                             focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500
-                             placeholder-slate-400 dark:placeholder-slate-500
-                             transition-all duration-200 backdrop-blur-sm"
+                  className="w-full pl-12 pr-4 py-4 rounded-xl border-2 bg-white dark:bg-slate-950/50 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 placeholder-slate-400 dark:placeholder-slate-500 transition-all duration-200 backdrop-blur-sm"
                   placeholder="tu@empresa.com"
                   required
                 />
@@ -147,7 +161,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Enhanced Password Field */}
+            {/* Password */}
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-violet-500 to-purple-500"></div>
@@ -162,12 +176,7 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-14 py-4 rounded-xl border-2 bg-white dark:bg-slate-950/50
-                             text-slate-900 dark:text-slate-100
-                             border-slate-200 dark:border-slate-700
-                             focus:outline-none focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500
-                             placeholder-slate-400 dark:placeholder-slate-500
-                             transition-all duration-200 backdrop-blur-sm"
+                  className="w-full pl-12 pr-14 py-4 rounded-xl border-2 bg-white dark:bg-slate-950/50 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 placeholder-slate-400 dark:placeholder-slate-500 transition-all duration-200 backdrop-blur-sm"
                   placeholder="Tu contraseña segura"
                   required
                 />
@@ -176,31 +185,19 @@ export default function LoginPage() {
                   className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-violet-500 transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
                 <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-violet-500 to-transparent scale-x-0 group-focus-within:scale-x-100 transition-transform duration-300"></div>
               </div>
             </div>
 
-            {/* Enhanced Submit Button */}
+            {/* Submit */}
             <div className="pt-4">
               <button
                 disabled={loading}
-                className="group relative w-full bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 text-white 
-                           py-4 px-6 rounded-xl font-semibold text-lg
-                           hover:from-indigo-500 hover:via-violet-500 hover:to-purple-500 
-                           focus:outline-none focus:ring-4 focus:ring-indigo-500/20
-                           disabled:opacity-50 disabled:cursor-not-allowed
-                           transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]
-                           shadow-lg hover:shadow-2xl overflow-hidden"
+                className="group relative w-full bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-indigo-500 hover:via-violet-500 hover:to-purple-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-2xl overflow-hidden"
               >
-                {/* Button background effect */}
                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                
                 {loading ? (
                   <div className="relative flex items-center justify-center">
                     <Loader2 className="animate-spin w-6 h-6 mr-3" />

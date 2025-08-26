@@ -1,30 +1,30 @@
-// src/app/assembly/[item]/collar-a/page.jsx
+// src/app/assembly/[item]/packaging/page.jsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { 
-  ArrowLeft, 
-  Save, 
-  Loader2, 
-  CircleDot,
+import {
+  ArrowLeft,
+  Save,
+  Loader2,
+  Package as PackageIcon,
   Info,
   AlertCircle,
   Edit3,
   Plus,
   Ruler,
-  FileText,
   Hash,
   CheckCircle,
   Zap,
-  Settings,
-  Wrench,
-  Shield
+  Box,
+  Tag,
+  Shield,
 } from "lucide-react";
 import { useAlert } from "@/components/AlertSystem";
 import { decodeItemId } from "@/lib/idCodec";
+import GlobalTopbar from "@/components/GlobalTopbar";
 
-export default function CollarAPage() {
+export default function PackagingPage() {
   const router = useRouter();
   const params = useParams();
 
@@ -37,20 +37,21 @@ export default function CollarAPage() {
   const [isEditing, setIsEditing] = useState(false);
 
   const [item, setItem] = useState("");
-  const [description, setDescription] = useState("");
   const [minv, setMinv] = useState("");
   const [nom, setNom] = useState("");
   const [maxv, setMaxv] = useState("");
-  const [dies, setDies] = useState("");
-  const [crimp, setCrimp] = useState("");
+  const [capA, setCapA] = useState("");
+  const [capB, setCapB] = useState("");
 
-  const [examples, setExamples] = useState({ items: [], descriptions: [], dies: [], crimps: [] });
+  const [examples, setExamples] = useState({ items: [], capA: [], capB: [] });
   const [loading, setLoading] = useState(false);
   const [loadingMeta, setLoadingMeta] = useState(true);
 
   const backToNew = () => {
     if (!token) return router.replace("/assembly/new");
-    router.replace(`/assembly/new?last=${encodeURIComponent(token)}#opcionales`);
+    router.replace(
+      `/assembly/new?last=${encodeURIComponent(token)}#opcionales`
+    );
   };
 
   const numericFilter = (raw) => {
@@ -60,7 +61,6 @@ export default function CollarAPage() {
     if (i !== -1) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, "");
     return v;
   };
-  const upper = (s) => (s ?? "").toString().toUpperCase();
 
   async function loadData() {
     if (assemblyItem == null) {
@@ -70,31 +70,32 @@ export default function CollarAPage() {
     setLoadingMeta(true);
     try {
       const [rex, rcur] = await Promise.all([
-        fetch("/api/collar-a/examples", { cache: "no-store" }),
-        fetch(`/api/collar-a?assemblyItem=${assemblyItem}`, { cache: "no-store" }),
+        fetch("/api/packaging/examples", { cache: "no-store" }),
+        fetch(`/api/packaging?assemblyItem=${assemblyItem}`, {
+          cache: "no-store",
+        }),
       ]);
       const dex = await rex.json();
       const dcur = await rcur.json();
 
-      if (!rex.ok || !dex?.ok) throw new Error(dex?.error || "No se pudieron cargar ejemplos");
+      if (!rex.ok || !dex?.ok)
+        throw new Error(dex?.error || "No se pudieron cargar ejemplos");
       setExamples({
         items: dex.items || [],
-        descriptions: dex.descriptions || [],
-        dies: dex.dies || [],
-        crimps: dex.crimps || [],
+        capA: dex.capA || [],
+        capB: dex.capB || [],
       });
 
-      if (!rcur.ok || !dcur?.ok) throw new Error(dcur?.error || "No se pudo obtener Collar A");
-
-      if (dcur.collarA) {
+      if (!rcur.ok || !dcur?.ok)
+        throw new Error(dcur?.error || "No se pudo obtener Packaging");
+      if (dcur.packaging) {
         setIsEditing(true);
-        setItem(dcur.collarA.Item != null ? String(dcur.collarA.Item) : "");
-        setDescription(upper(dcur.collarA.Description ?? ""));
-        setMinv(dcur.collarA.Min != null ? String(dcur.collarA.Min) : "");
-        setNom(dcur.collarA.Nom != null ? String(dcur.collarA.Nom) : "");
-        setMaxv(dcur.collarA.Max != null ? String(dcur.collarA.Max) : "");
-        setDies(upper(dcur.collarA.Dies ?? ""));
-        setCrimp(upper(dcur.collarA.Crimp ?? ""));
+        setItem(dcur.packaging.Item != null ? String(dcur.packaging.Item) : "");
+        setMinv(dcur.packaging.Min != null ? String(dcur.packaging.Min) : "");
+        setNom(dcur.packaging.Nom != null ? String(dcur.packaging.Nom) : "");
+        setMaxv(dcur.packaging.Max != null ? String(dcur.packaging.Max) : "");
+        setCapA(dcur.packaging.CapA ?? "");
+        setCapB(dcur.packaging.CapB ?? "");
       } else {
         setIsEditing(false);
       }
@@ -116,36 +117,33 @@ export default function CollarAPage() {
       showWarning("Falta el Assembly Item en la ruta");
       return;
     }
-    // Validaciones mínimas en cliente
     if (!isEditing && !item) {
-      showWarning("Item es obligatorio");
-      return;
-    }
-    if (!description || !minv || !nom || !maxv || !dies || !crimp) {
-      showWarning("Todos los campos son obligatorios");
+      showWarning("Item es obligatorio al crear");
       return;
     }
 
     setLoading(true);
     try {
-      const r = await fetch("/api/collar-a", {
+      const r = await fetch("/api/packaging", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assemblyItem,
-          item: isEditing ? null : Number(item), // requerido sólo al crear
-          description: upper(description),
-          min: Number(minv),
-          max: Number(maxv),
-          nom: Number(nom),
-          dies: upper(dies),
-          crimp: upper(crimp),
+          item: isEditing ? null : Number(item),
+          min: minv === "" ? null : Number(minv),
+          nom: nom === "" ? null : Number(nom),
+          max: maxv === "" ? null : Number(maxv),
+          capA: capA.trim() || null,
+          capB: capB.trim() || null,
         }),
       });
       const d = await r.json();
-      if (!r.ok || !d?.ok) throw new Error(d?.error || "No se pudo guardar");
+      if (!r.ok || !d?.ok)
+        throw new Error(d?.error || "No se pudo guardar Packaging");
 
-      showSuccess(`${isEditing ? "Collar A actualizado" : "Collar A guardado"}.`);
+      showSuccess(
+        `${isEditing ? "Packaging actualizado" : "Packaging guardado"}.`
+      );
       setTimeout(() => backToNew(), 900);
     } catch (e) {
       showError(e.message);
@@ -154,8 +152,8 @@ export default function CollarAPage() {
     }
   }
 
-  // Check if all required fields are filled
-  const isFormValid = (!isEditing ? item : true) && description && minv && nom && maxv && dies && crimp;
+  // Check required fields - only Item is required when creating
+  const isFormValid = !isEditing ? item.trim() : true;
 
   if (assemblyItem == null) {
     return (
@@ -164,7 +162,9 @@ export default function CollarAPage() {
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-red-500 to-rose-500 flex items-center justify-center">
             <AlertCircle className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">Token Inválido</h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+            Token Inválido
+          </h2>
           <p className="text-sm text-slate-700 dark:text-slate-300 font-medium mb-6">
             El token de Assembly es inválido o ha expirado.
           </p>
@@ -182,17 +182,19 @@ export default function CollarAPage() {
 
   if (loadingMeta) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-violet-50 dark:from-slate-950 dark:via-purple-950 dark:to-violet-950 grid place-items-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 dark:from-slate-950 dark:via-gray-950 dark:to-slate-900 grid place-items-center">
         <div className="text-center">
           <div className="relative">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-purple-500 to-violet-500 flex items-center justify-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-gray-600 to-slate-600 flex items-center justify-center">
               <Loader2 className="w-8 h-8 animate-spin text-white" />
             </div>
-            <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-purple-500 to-violet-500 animate-pulse opacity-50"></div>
+            <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-gray-600 to-slate-600 animate-pulse opacity-50"></div>
           </div>
-          <p className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Cargando datos de Collar A…</p>
+          <p className="text-slate-700 dark:text-slate-300 text-sm font-semibold">
+            Cargando datos de Packaging…
+          </p>
           <p className="text-slate-500 dark:text-slate-500 text-xs mt-1">
-            Preparando configuración de collar
+            Preparando configuración de empaque
           </p>
         </div>
       </div>
@@ -200,91 +202,84 @@ export default function CollarAPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 dark:from-slate-950 dark:via-purple-950 dark:to-violet-950">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 dark:from-slate-950 dark:via-gray-950 dark:to-slate-900">
       {/* Decorative background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-purple-400/15 to-violet-600/15 blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-tr from-indigo-400/15 to-purple-600/15 blur-3xl"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-gray-400/15 to-slate-600/15 blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-tr from-slate-400/15 to-gray-600/15 blur-3xl"></div>
       </div>
 
       {/* Enhanced Topbar */}
-      <header className="relative border-b border-slate-200/60 dark:border-slate-800/60 bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white shadow-lg">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="relative max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={backToNew}
-                className="group px-4 py-2 rounded-lg bg-white/15 hover:bg-white/25 border border-white/20 backdrop-blur-sm transition-all duration-200 hover:scale-105"
-              >
-                <span className="inline-flex items-center gap-2 text-sm font-medium">
-                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                  Volver al Assembly
-                </span>
-              </button>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white/15 backdrop-blur-sm">
-                  <Shield className="w-6 h-6" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold">Collar A</h1>
-                  <p className="text-white/80 text-xs">Configuración de collar protector</p>
-                </div>
+      <GlobalTopbar
+        title="Packaging"
+        subtitle="Configuración de empaque y tapones"
+        icon={PackageIcon}
+        gradient="from-gray-600 via-slate-600 to-gray-700"
+        containerMax="max-w-6xl"
+        onBack={backToNew}
+        rightExtra={
+          <div className="flex items-center gap-3">
+            {isEditing && (
+              <div className="flex items-center gap-2 text-xs bg-gray-500/90 text-white px-3 py-2 rounded-lg border border-gray-400">
+                <Edit3 className="w-4 h-4" />
+                <span>Modo Edición</span>
               </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {isEditing && (
-                <div className="flex items-center gap-2 text-xs bg-purple-500/90 text-white px-3 py-2 rounded-lg border border-purple-400">
-                  <Edit3 className="w-4 h-4" />
-                  <span>Modo Edición</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2 text-xs bg-white/15 border border-white/20 px-3 py-2 rounded-lg backdrop-blur-sm">
-                <Hash className="w-4 h-4" />
-                <span>Assembly: <b>{assemblyItem}</b></span>
-              </div>
+            )}
+            <div className="flex items-center gap-2 text-xs bg-white/15 border border-white/20 px-3 py-2 rounded-lg backdrop-blur-sm">
+              <Hash className="w-4 h-4" />
+              <span>
+                Assembly: <b>{assemblyItem}</b>
+              </span>
             </div>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Enhanced Main Content */}
       <main className="relative max-w-6xl mx-auto px-4 py-8">
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
           {/* Enhanced Form Header */}
-          <div className="relative p-6 bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500 text-white">
+          <div className="relative p-6 bg-gradient-to-r from-gray-600 via-slate-600 to-gray-700 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
-                  {isEditing ? <Edit3 className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
+                  {isEditing ? (
+                    <Edit3 className="w-6 h-6" />
+                  ) : (
+                    <Plus className="w-6 h-6" />
+                  )}
                 </div>
                 <div>
                   <h2 className="text-lg font-bold">
-                    {isEditing ? "Editar Collar A" : "Configurar Collar A"}
+                    {isEditing ? "Editar Packaging" : "Configurar Packaging"}
                   </h2>
                   <p className="text-white/90 text-sm">
-                    {isEditing ? "Modifica los parámetros del collar protector" : "Define los parámetros del collar de protección"}
+                    {isEditing
+                      ? "Modifica los parámetros de empaque"
+                      : "Define los parámetros de empaque y tapones"}
                   </p>
                 </div>
               </div>
               <div className="hidden sm:block text-xs text-white/80 bg-white/15 px-3 py-2 rounded-lg backdrop-blur-sm">
                 <div className="flex items-center gap-1">
                   <Zap className="w-3 h-3" />
-                  <span>El <b>Item</b> se agregará a <b>Adds[4]</b> al crear</span>
+                  <span>
+                    El <b>Item</b> se agregará a <b>Adds[7]</b> al crear
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
           <form onSubmit={onSubmit} className="p-8 space-y-8">
-            {/* Required Fields Alert */}
-            <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
-              <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {/* Info Alert */}
+            <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                <Info className="w-4 h-4 flex-shrink-0" />
                 <p className="text-sm font-medium">
-                  Todos los campos son obligatorios para el Collar A
+                  Solo el <strong>Item</strong> es obligatorio al crear. Todos
+                  los demás campos son opcionales.
                 </p>
               </div>
             </div>
@@ -292,14 +287,24 @@ export default function CollarAPage() {
             {/* Enhanced Item Field */}
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-purple-500 to-violet-500"></div>
-                Item del Collar A
+                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-gray-500 to-slate-500"></div>
+                Item del Packaging
                 {!isEditing && <span className="text-red-500">*</span>}
-                {isEditing && <span className="text-xs text-purple-600 dark:text-purple-400">(Solo lectura)</span>}
+                {isEditing && (
+                  <span className="text-xs text-gray-600 dark:text-gray-400">
+                    (Solo lectura)
+                  </span>
+                )}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Hash className={`h-5 w-5 ${isEditing ? 'text-purple-500' : 'text-slate-500 dark:text-slate-400'}`} />
+                  <Hash
+                    className={`h-5 w-5 ${
+                      isEditing
+                        ? "text-gray-500"
+                        : "text-slate-500 dark:text-slate-400"
+                    }`}
+                  />
                 </div>
                 <input
                   value={item}
@@ -310,54 +315,28 @@ export default function CollarAPage() {
                   readOnly={isEditing}
                   className={`w-full pl-12 pr-4 py-4 rounded-xl border-2 text-slate-900 dark:text-slate-100
                              transition-all duration-200
-                             ${isEditing 
-                               ? "bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800 cursor-not-allowed" 
-                               : "bg-white dark:bg-slate-950/50 border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500"
+                             ${
+                               isEditing
+                                 ? "bg-gray-50 dark:bg-gray-950/20 border-gray-200 dark:border-gray-800 cursor-not-allowed"
+                                 : "bg-white dark:bg-slate-950/50 border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-4 focus:ring-gray-500/20 focus:border-gray-500"
                              }`}
                 />
               </div>
               <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                 <Info className="w-3 h-3" />
-                <span>Se agregará a Adds[4]. Ejemplos: {examples.items.slice(0, 3).join(" • ") || "Cargando..."}</span>
+                <span>
+                  Se agregará a Adds[7]. Ejemplos:{" "}
+                  {examples.items.slice(0, 3).join(" • ") || "Cargando..."}
+                </span>
               </div>
             </div>
 
-            {/* Enhanced Description Field */}
-            <div className="space-y-3">
-              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500"></div>
-                Descripción del Collar
-                <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FileText className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-                </div>
-                <input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value.toUpperCase())}
-                  placeholder="DESCRIPCIÓN DEL COLLAR EN MAYÚSCULAS"
-                  required
-                  className="w-full pl-12 pr-4 py-4 rounded-xl border-2 bg-white dark:bg-slate-950/50
-                             text-slate-900 dark:text-slate-100 uppercase
-                             border-slate-200 dark:border-slate-700
-                             focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
-                             transition-all duration-200"
-                />
-              </div>
-              <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                <Info className="w-3 h-3" />
-                <span>Se convierte automáticamente a mayúsculas. Ejemplos: {examples.descriptions.slice(0, 3).join(" • ") || "Cargando..."}</span>
-              </div>
-            </div>
-
-            {/* Enhanced Measurements Grid */}
+            {/* Enhanced Measurements */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-500"></div>
                 <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Medidas del Collar
-                  <span className="text-red-500 ml-1">*</span>
+                  Medidas de Empaque (Opcionales)
                 </h3>
               </div>
               <div className="grid sm:grid-cols-3 gap-6">
@@ -365,15 +344,12 @@ export default function CollarAPage() {
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <Ruler className="w-4 h-4 text-green-500" />
                     Mínimo
-                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     value={minv}
                     onChange={(e) => setMinv(numericFilter(e.target.value))}
                     inputMode="decimal"
-                    pattern="^\d*\.?\d*$"
                     placeholder="0.00"
-                    required
                     className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
                                text-slate-900 dark:text-slate-100
                                border-slate-200 dark:border-slate-700
@@ -385,15 +361,12 @@ export default function CollarAPage() {
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <Ruler className="w-4 h-4 text-blue-500" />
                     Nominal
-                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     value={nom}
                     onChange={(e) => setNom(numericFilter(e.target.value))}
                     inputMode="decimal"
-                    pattern="^\d*\.?\d*$"
                     placeholder="0.00"
-                    required
                     className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
                                text-slate-900 dark:text-slate-100
                                border-slate-200 dark:border-slate-700
@@ -405,15 +378,12 @@ export default function CollarAPage() {
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <Ruler className="w-4 h-4 text-red-500" />
                     Máximo
-                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     value={maxv}
                     onChange={(e) => setMaxv(numericFilter(e.target.value))}
                     inputMode="decimal"
-                    pattern="^\d*\.?\d*$"
                     placeholder="0.00"
-                    required
                     className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
                                text-slate-900 dark:text-slate-100
                                border-slate-200 dark:border-slate-700
@@ -424,29 +394,26 @@ export default function CollarAPage() {
               </div>
             </div>
 
-            {/* Enhanced Configuration Fields */}
+            {/* Enhanced Cap Fields */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-orange-500 to-amber-500"></div>
                 <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Configuración del Collar
-                  <span className="text-red-500 ml-1">*</span>
+                  Tapones y Protecciones (Opcionales)
                 </h3>
               </div>
-              
+
               <div className="grid sm:grid-cols-2 gap-6">
-                {/* Dies Field */}
+                {/* CapA Field */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
-                    <Wrench className="w-4 h-4 text-orange-500" />
-                    Dies (Matrices)
-                    <span className="text-red-500">*</span>
+                    <Shield className="w-4 h-4 text-orange-500" />
+                    CapA (Protección A)
                   </label>
                   <input
-                    value={dies}
-                    onChange={(e) => setDies(e.target.value.toUpperCase())}
-                    placeholder="MATRIZ COLLAR, DIES A, HERRAMIENTAS"
-                    required
+                    value={capA}
+                    onChange={(e) => setCapA(e.target.value.toUpperCase())}
+                    placeholder="UN-9764, TS-17, TAPÓN INCLUIDO..."
                     className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
                                text-slate-900 dark:text-slate-100 uppercase
                                border-slate-200 dark:border-slate-700
@@ -455,22 +422,23 @@ export default function CollarAPage() {
                   />
                   <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                     <Info className="w-3 h-3" />
-                    <span>Ejemplos: {examples.dies.slice(0, 3).join(" • ") || "Cargando..."}</span>
+                    <span>
+                      Ejemplos:{" "}
+                      {examples.capA.slice(0, 3).join(" • ") || "Cargando..."}
+                    </span>
                   </div>
                 </div>
 
-                {/* Crimp Field */}
+                {/* CapB Field */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
-                    <Settings className="w-4 h-4 text-amber-500" />
-                    Tipo de Crimp
-                    <span className="text-red-500">*</span>
+                    <Tag className="w-4 h-4 text-amber-500" />
+                    CapB (Protección B)
                   </label>
                   <input
-                    value={crimp}
-                    onChange={(e) => setCrimp(e.target.value.toUpperCase())}
-                    placeholder="NORMAL, ESPECIAL, REFORZADO"
-                    required
+                    value={capB}
+                    onChange={(e) => setCapB(e.target.value.toUpperCase())}
+                    placeholder="UN-9764, TAPON INCLUIDO, PROTECTOR..."
                     className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
                                text-slate-900 dark:text-slate-100 uppercase
                                border-slate-200 dark:border-slate-700
@@ -479,7 +447,10 @@ export default function CollarAPage() {
                   />
                   <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                     <Info className="w-3 h-3" />
-                    <span>Ejemplos: {examples.crimps.slice(0, 3).join(" • ") || "Cargando..."}</span>
+                    <span>
+                      Ejemplos:{" "}
+                      {examples.capB.slice(0, 3).join(" • ") || "Cargando..."}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -491,9 +462,9 @@ export default function CollarAPage() {
                 disabled={loading || !isFormValid}
                 type="submit"
                 className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-xl
-                           bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white
-                           hover:from-purple-500 hover:via-violet-500 hover:to-indigo-500
-                           focus:outline-none focus:ring-4 focus:ring-purple-500/20
+                           bg-gradient-to-r from-gray-600 via-slate-600 to-gray-700 text-white
+                           hover:from-gray-500 hover:via-slate-500 hover:to-gray-600
+                           focus:outline-none focus:ring-4 focus:ring-gray-500/20
                            disabled:opacity-50 disabled:cursor-not-allowed
                            transform hover:scale-105 transition-all duration-200
                            shadow-lg hover:shadow-xl font-semibold text-lg"
@@ -505,8 +476,12 @@ export default function CollarAPage() {
                   </>
                 ) : (
                   <>
-                    {isEditing ? <Edit3 className="w-5 h-5 group-hover:scale-110 transition-transform" /> : <Save className="w-5 h-5 group-hover:scale-110 transition-transform" />}
-                    {isEditing ? "Actualizar Collar A" : "Guardar Collar A"}
+                    {isEditing ? (
+                      <Edit3 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    ) : (
+                      <Save className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    )}
+                    {isEditing ? "Actualizar Packaging" : "Guardar Packaging"}
                     <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
                   </>
                 )}
@@ -517,31 +492,45 @@ export default function CollarAPage() {
         </div>
 
         {/* Enhanced Info Card */}
-        <div className="mt-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/20 dark:to-violet-950/20 shadow-lg p-6">
+        <div className="mt-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-gray-50 to-slate-50 dark:from-gray-950/20 dark:to-slate-950/20 shadow-lg p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-purple-500 text-white">
-              <Shield className="w-4 h-4" />
+            <div className="p-2 rounded-lg bg-gray-500 text-white">
+              <PackageIcon className="w-4 h-4" />
             </div>
             <h4 className="font-bold text-slate-900 dark:text-slate-100">
-              Información del Collar A
+              Información del Packaging
             </h4>
           </div>
           <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
             <li className="flex items-start gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-2 flex-shrink-0"></div>
-              <span>El <strong>Item</strong> se agrega automáticamente como cuarto elemento (<strong>Adds[4]</strong>) del Assembly al crear un nuevo registro.</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-gray-500 mt-2 flex-shrink-0"></div>
+              <span>
+                El <strong>Item</strong> se agrega automáticamente como séptimo
+                elemento (<strong>Adds[7]</strong>) del Assembly al crear un
+                nuevo registro.
+              </span>
             </li>
             <li className="flex items-start gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-2 flex-shrink-0"></div>
-              <span><strong>Todos los campos son obligatorios</strong> para el Collar A, incluyendo Item (solo al crear), Description, Min/Nom/Max, Dies y Crimp.</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-slate-500 mt-2 flex-shrink-0"></div>
+              <span>
+                Solo el <strong>Item</strong> es obligatorio al crear. Todos los
+                demás campos (Min/Nom/Max, CapA, CapB) son opcionales.
+              </span>
             </li>
             <li className="flex items-start gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 flex-shrink-0"></div>
-              <span>Los campos <strong>Description</strong>, <strong>Dies</strong> y <strong>Crimp</strong> se convierten automáticamente a mayúsculas.</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-2 flex-shrink-0"></div>
+              <span>
+                Los campos <strong>CapA</strong> y <strong>CapB</strong> se
+                convierten automáticamente a mayúsculas y son para especificar
+                tapones o protecciones.
+              </span>
             </li>
             <li className="flex items-start gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 flex-shrink-0"></div>
-              <span>En modo edición, el campo <strong>Item</strong> es de solo lectura para mantener la integridad de los datos del Assembly.</span>
+              <span>
+                En modo edición, el campo <strong>Item</strong> es de solo
+                lectura para mantener la integridad de los datos.
+              </span>
             </li>
           </ul>
         </div>

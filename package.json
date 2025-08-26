@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
+    "jose": "^6.0.13",
     "lucide-react": "^0.540.0",
     "msnodesqlv8": "^5.1.1",
     "mssql": "^11.0.1",

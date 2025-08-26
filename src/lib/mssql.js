@@ -1,29 +1,27 @@
-// src/lib/mssql.js
-// Driver condicional (msnodesqlv8 para Windows Auth)
+//* Driver condicional (msnodesqlv8 para Windows Auth)
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
 const useWindows = (process.env.SQL_AUTH ?? "windows") === "windows";
 const sql = useWindows ? require("mssql/msnodesqlv8") : require("mssql");
 
-// === Lectura de .env ===
-const HOST = process.env.SQL_SERVER || "localhost";      // p.ej. localhost
-const INSTANCE = process.env.SQL_INSTANCE || "";         // p.ej. SQLEXPRESS
+//? === Lectura de .env ===
+const HOST = process.env.SQL_SERVER || "localhost";      
+const INSTANCE = process.env.SQL_INSTANCE || "";         
 const DATABASE = process.env.SQL_DATABASE || "Gates";
 const PORT = process.env.SQL_PORT ? Number(process.env.SQL_PORT) : undefined;
 
 const ENCRYPT = (process.env.SQL_ENCRYPT ?? "false").toLowerCase() === "true";
 const TRUST = (process.env.SQL_TRUST_CERT ?? "true").toLowerCase() === "true";
 
-// Opciones comunes
+//* Opciones comunes
 const commonOptions = {
   encrypt: ENCRYPT,
   trustServerCertificate: TRUST,
-  // enableArithAbort recomendado por Microsoft
   enableArithAbort: true,
 };
 
-// Construcción de config según autenticación/driver
+//* Construcción de config según autenticación/driver
 const config = useWindows
   ? {
       server: HOST,
@@ -31,13 +29,12 @@ const config = useWindows
       driver: "msnodesqlv8",
       options: {
         ...commonOptions,
-        trustedConnection: true,         // Windows Auth
-        // Para INSTANCIA NOMBRADA:
-        // Si tienes SQLEXPRESS, usa instanceName. Si además defines un puerto fijo, PORT manda.
+        trustedConnection: true,         
+        //* Para INSTANCIA NOMBRADA:
         instanceName: INSTANCE || undefined,
-        port: PORT,                      // si lo defines, fuerza ese puerto
+        port: PORT,                    
       },
-      // timeouts opcionales
+      //* timeouts opcionales
       connectionTimeout: 15000,
       requestTimeout: 15000,
     }
@@ -46,7 +43,7 @@ const config = useWindows
       password: process.env.SQL_PASSWORD,
       server: HOST,
       database: DATABASE,
-      port: PORT || 1433,               // SQL Login suele usar 1433
+      port: PORT || 1433,               
       options: {
         ...commonOptions,
         instanceName: INSTANCE || undefined,
@@ -55,7 +52,7 @@ const config = useWindows
       requestTimeout: 15000,
     };
 
-// Cachear el pool entre hot-reloads
+//* Cachear el pool entre hot-reloads
 const g = globalThis;
 if (!g.__mssqlPoolPromise) {
   if (process.env.NODE_ENV !== "production") {

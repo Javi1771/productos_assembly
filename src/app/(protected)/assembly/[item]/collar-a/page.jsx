@@ -1,4 +1,3 @@
-// src/app/assembly/[item]/crimp-b/page.jsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,7 +6,7 @@ import {
   ArrowLeft,
   Save,
   Loader2,
-  Wrench,
+  CircleDot,
   Info,
   AlertCircle,
   Edit3,
@@ -18,14 +17,14 @@ import {
   CheckCircle,
   Zap,
   Settings,
-  Target,
-  Cog,
-  Tool,
+  Wrench,
+  Shield,
 } from "lucide-react";
 import { useAlert } from "@/components/AlertSystem";
 import { decodeItemId } from "@/lib/idCodec";
+import GlobalTopbar from "@/components/GlobalTopbar";
 
-export default function CrimpBPage() {
+export default function CollarAPage() {
   const router = useRouter();
   const params = useParams();
 
@@ -42,19 +41,14 @@ export default function CrimpBPage() {
   const [minv, setMinv] = useState("");
   const [nom, setNom] = useState("");
   const [maxv, setMaxv] = useState("");
-  const [curv, setCurv] = useState("");
   const [dies, setDies] = useState("");
   const [crimp, setCrimp] = useState("");
-  const [minO, setMinO] = useState("");
-  const [nomO, setNomO] = useState("");
-  const [maxO, setMaxO] = useState("");
 
   const [examples, setExamples] = useState({
     items: [],
     descriptions: [],
     dies: [],
     crimps: [],
-    curvs: [],
   });
   const [loading, setLoading] = useState(false);
   const [loadingMeta, setLoadingMeta] = useState(true);
@@ -73,6 +67,7 @@ export default function CrimpBPage() {
     if (i !== -1) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, "");
     return v;
   };
+  const upper = (s) => (s ?? "").toString().toUpperCase();
 
   async function loadData() {
     if (assemblyItem == null) {
@@ -82,8 +77,8 @@ export default function CrimpBPage() {
     setLoadingMeta(true);
     try {
       const [rex, rcur] = await Promise.all([
-        fetch("/api/crimp-b/examples", { cache: "no-store" }),
-        fetch(`/api/crimp-b?assemblyItem=${assemblyItem}`, {
+        fetch("/api/collar-a/examples", { cache: "no-store" }),
+        fetch(`/api/collar-a?assemblyItem=${assemblyItem}`, {
           cache: "no-store",
         }),
       ]);
@@ -97,26 +92,20 @@ export default function CrimpBPage() {
         descriptions: dex.descriptions || [],
         dies: dex.dies || [],
         crimps: dex.crimps || [],
-        curvs: dex.curvs || [],
       });
 
       if (!rcur.ok || !dcur?.ok)
-        throw new Error(dcur?.error || "No se pudo obtener Crimp B");
+        throw new Error(dcur?.error || "No se pudo obtener Collar A");
 
-      if (dcur.crimpB) {
+      if (dcur.collarA) {
         setIsEditing(true);
-        setItem(dcur.crimpB.Item != null ? String(dcur.crimpB.Item) : "");
-        setDescription(dcur.crimpB.Description ?? "");
-        setMinv(dcur.crimpB.Min != null ? String(dcur.crimpB.Min) : "");
-        setNom(dcur.crimpB.Nom != null ? String(dcur.crimpB.Nom) : "");
-        setMaxv(dcur.crimpB.Max != null ? String(dcur.crimpB.Max) : "");
-        setCurv(dcur.crimpB.Curv ?? "");
-        setDies(dcur.crimpB.Dies ?? "");
-        setCrimp(dcur.crimpB.Crimp ?? "");
-        setMinO(dcur.crimpB.MinO != null ? String(dcur.crimpB.MinO) : "");
-        setNomO(dcur.crimpB.NomO != null ? String(dcur.crimpB.NomO) : "");
-        setMaxO(dcur.crimpB.MaxO != null ? String(dcur.crimpB.MaxO) : "");
-        setMinO(dcur.crimpB.MinO != null ? String(dcur.crimpB.MinO) : "");
+        setItem(dcur.collarA.Item != null ? String(dcur.collarA.Item) : "");
+        setDescription(upper(dcur.collarA.Description ?? ""));
+        setMinv(dcur.collarA.Min != null ? String(dcur.collarA.Min) : "");
+        setNom(dcur.collarA.Nom != null ? String(dcur.collarA.Nom) : "");
+        setMaxv(dcur.collarA.Max != null ? String(dcur.collarA.Max) : "");
+        setDies(upper(dcur.collarA.Dies ?? ""));
+        setCrimp(upper(dcur.collarA.Crimp ?? ""));
       } else {
         setIsEditing(false);
       }
@@ -129,7 +118,6 @@ export default function CrimpBPage() {
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assemblyItem]);
 
   async function onSubmit(e) {
@@ -138,40 +126,38 @@ export default function CrimpBPage() {
       showWarning("Falta el Assembly Item en la ruta");
       return;
     }
+    //* Validaciones mínimas en cliente
     if (!isEditing && !item) {
-      showWarning("Item es obligatorio al crear");
+      showWarning("Item es obligatorio");
       return;
     }
-    if (!description) {
-      showWarning("Description es obligatoria");
+    if (!description || !minv || !nom || !maxv || !dies || !crimp) {
+      showWarning("Todos los campos son obligatorios");
       return;
     }
 
     setLoading(true);
     try {
-      const r = await fetch("/api/crimp-b", {
+      const r = await fetch("/api/collar-a", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assemblyItem,
-          item: isEditing ? null : Number(item),
-          description: description,
-          min: minv === "" ? null : Number(minv),
-          nom: nom === "" ? null : Number(nom),
-          max: maxv === "" ? null : Number(maxv),
-          curv: curv || null,
-          dies: dies || null,
-          crimp: crimp || null,
-          minO: minO === "" ? null : Number(minO),
-          nomO: nomO === "" ? null : Number(nomO),
-          maxO: maxO === "" ? null : Number(maxO),
-          minO: minO === "" ? null : Number(minO),
+          item: isEditing ? null : Number(item), //* requerido sólo al crear
+          description: upper(description),
+          min: Number(minv),
+          max: Number(maxv),
+          nom: Number(nom),
+          dies: upper(dies),
+          crimp: upper(crimp),
         }),
       });
       const d = await r.json();
       if (!r.ok || !d?.ok) throw new Error(d?.error || "No se pudo guardar");
 
-      showSuccess(`${isEditing ? "Crimp B actualizado" : "Crimp B guardado"}.`);
+      showSuccess(
+        `${isEditing ? "Collar A actualizado" : "Collar A guardado"}.`
+      );
       setTimeout(() => backToNew(), 900);
     } catch (e) {
       showError(e.message);
@@ -180,8 +166,14 @@ export default function CrimpBPage() {
     }
   }
 
-  // Check required fields
-  const isFormValid = (!isEditing ? item : true) && description;
+  const isFormValid =
+    (!isEditing ? item : true) &&
+    description &&
+    minv &&
+    nom &&
+    maxv &&
+    dies &&
+    crimp;
 
   if (assemblyItem == null) {
     return (
@@ -210,19 +202,19 @@ export default function CrimpBPage() {
 
   if (loadingMeta) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-rose-50 to-pink-50 dark:from-slate-950 dark:via-rose-950 dark:to-pink-950 grid place-items-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-violet-50 dark:from-slate-950 dark:via-purple-950 dark:to-violet-950 grid place-items-center">
         <div className="text-center">
           <div className="relative">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 flex items-center justify-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-purple-500 to-violet-500 flex items-center justify-center">
               <Loader2 className="w-8 h-8 animate-spin text-white" />
             </div>
-            <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-rose-500 to-pink-500 animate-pulse opacity-50"></div>
+            <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-purple-500 to-violet-500 animate-pulse opacity-50"></div>
           </div>
           <p className="text-slate-700 dark:text-slate-300 text-sm font-semibold">
-            Cargando datos de Crimp B…
+            Cargando datos de Collar A…
           </p>
           <p className="text-slate-500 dark:text-slate-500 text-xs mt-1">
-            Preparando configuración de segundo engaste
+            Preparando configuración de collar
           </p>
         </div>
       </div>
@@ -230,64 +222,43 @@ export default function CrimpBPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-rose-50 to-pink-100 dark:from-slate-950 dark:via-rose-950 dark:to-pink-950">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-violet-100 dark:from-slate-950 dark:via-purple-950 dark:to-violet-950">
       {/* Decorative background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-rose-400/15 to-pink-600/15 blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-tr from-red-400/15 to-rose-600/15 blur-3xl"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-purple-400/15 to-violet-600/15 blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-tr from-indigo-400/15 to-purple-600/15 blur-3xl"></div>
       </div>
 
       {/* Enhanced Topbar */}
-      <header className="relative border-b border-slate-200/60 dark:border-slate-800/60 bg-gradient-to-r from-rose-600 via-pink-600 to-red-600 text-white shadow-lg">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="relative max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={backToNew}
-                className="group px-4 py-2 rounded-lg bg-white/15 hover:bg-white/25 border border-white/20 backdrop-blur-sm transition-all duration-200 hover:scale-105"
-              >
-                <span className="inline-flex items-center gap-2 text-sm font-medium">
-                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                  Volver al Assembly
-                </span>
-              </button>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white/15 backdrop-blur-sm">
-                  <Wrench className="w-6 h-6" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold">Crimp B</h1>
-                  <p className="text-white/80 text-xs">
-                    Configuración de segundo engaste
-                  </p>
-                </div>
+      <GlobalTopbar
+        title="Collar A"
+        subtitle="Configuración de collar protector"
+        icon={Shield}
+        gradient="from-purple-600 via-violet-600 to-indigo-600"
+        onBack={backToNew} 
+        rightExtra={
+          <div className="flex items-center gap-3">
+            {isEditing && (
+              <div className="flex items-center gap-2 text-xs bg-purple-500/90 text-white px-3 py-2 rounded-lg border border-purple-400">
+                <Edit3 className="w-4 h-4" />
+                <span>Modo Edición</span>
               </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {isEditing && (
-                <div className="flex items-center gap-2 text-xs bg-rose-500/90 text-white px-3 py-2 rounded-lg border border-rose-400">
-                  <Edit3 className="w-4 h-4" />
-                  <span>Modo Edición</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2 text-xs bg-white/15 border border-white/20 px-3 py-2 rounded-lg backdrop-blur-sm">
-                <Hash className="w-4 h-4" />
-                <span>
-                  Assembly: <b>{assemblyItem}</b>
-                </span>
-              </div>
+            )}
+            <div className="flex items-center gap-2 text-xs bg-white/15 border border-white/20 px-3 py-2 rounded-lg backdrop-blur-sm">
+              <Hash className="w-4 h-4" />
+              <span>
+                Assembly: <b>{assemblyItem}</b>
+              </span>
             </div>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Enhanced Main Content */}
       <main className="relative max-w-6xl mx-auto px-4 py-8">
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
           {/* Enhanced Form Header */}
-          <div className="relative p-6 bg-gradient-to-r from-rose-500 via-pink-500 to-red-500 text-white">
+          <div className="relative p-6 bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -300,12 +271,12 @@ export default function CrimpBPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold">
-                    {isEditing ? "Editar Crimp B" : "Configurar Crimp B"}
+                    {isEditing ? "Editar Collar A" : "Configurar Collar A"}
                   </h2>
                   <p className="text-white/90 text-sm">
                     {isEditing
-                      ? "Modifica los parámetros del segundo engaste"
-                      : "Define los parámetros del segundo proceso de engaste"}
+                      ? "Modifica los parámetros del collar protector"
+                      : "Define los parámetros del collar de protección"}
                   </p>
                 </div>
               </div>
@@ -313,7 +284,7 @@ export default function CrimpBPage() {
                 <div className="flex items-center gap-1">
                   <Zap className="w-3 h-3" />
                   <span>
-                    El <b>Item</b> se agregará a <b>Adds[5]</b> al crear
+                    El <b>Item</b> se agregará a <b>Adds[4]</b> al crear
                   </span>
                 </div>
               </div>
@@ -322,13 +293,11 @@ export default function CrimpBPage() {
 
           <form onSubmit={onSubmit} className="p-8 space-y-8">
             {/* Required Fields Alert */}
-            <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
-                <Info className="w-4 h-4 flex-shrink-0" />
+            <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
+              <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <p className="text-sm font-medium">
-                  <strong>Item</strong> (solo al crear) y{" "}
-                  <strong>Description</strong> son obligatorios. Los demás
-                  campos son opcionales.
+                  Todos los campos son obligatorios para el Collar A
                 </p>
               </div>
             </div>
@@ -336,11 +305,11 @@ export default function CrimpBPage() {
             {/* Enhanced Item Field */}
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500"></div>
-                Item del Crimp B
+                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-purple-500 to-violet-500"></div>
+                Item del Collar A
                 {!isEditing && <span className="text-red-500">*</span>}
                 {isEditing && (
-                  <span className="text-xs text-rose-600 dark:text-rose-400">
+                  <span className="text-xs text-purple-600 dark:text-purple-400">
                     (Solo lectura)
                   </span>
                 )}
@@ -350,7 +319,7 @@ export default function CrimpBPage() {
                   <Hash
                     className={`h-5 w-5 ${
                       isEditing
-                        ? "text-rose-500"
+                        ? "text-purple-500"
                         : "text-slate-500 dark:text-slate-400"
                     }`}
                   />
@@ -366,15 +335,15 @@ export default function CrimpBPage() {
                              transition-all duration-200
                              ${
                                isEditing
-                                 ? "bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800 cursor-not-allowed"
-                                 : "bg-white dark:bg-slate-950/50 border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-4 focus:ring-rose-500/20 focus:border-rose-500"
+                                 ? "bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800 cursor-not-allowed"
+                                 : "bg-white dark:bg-slate-950/50 border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500"
                              }`}
                 />
               </div>
               <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                 <Info className="w-3 h-3" />
                 <span>
-                  Se agregará a Adds[5]. Ejemplos:{" "}
+                  Se agregará a Adds[4]. Ejemplos:{" "}
                   {examples.items.slice(0, 3).join(" • ") || "Cargando..."}
                 </span>
               </div>
@@ -384,7 +353,8 @@ export default function CrimpBPage() {
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500"></div>
-                Descripción del Crimp B<span className="text-red-500">*</span>
+                Descripción del Collar
+                <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -393,7 +363,7 @@ export default function CrimpBPage() {
                 <input
                   value={description}
                   onChange={(e) => setDescription(e.target.value.toUpperCase())}
-                  placeholder="ESCRIBE LA DESCRIPCIÓN"
+                  placeholder="Ej. 12SC-2, 10SC-2, 8SC-1"
                   required
                   className="w-full pl-12 pr-4 py-4 rounded-xl border-2 bg-white dark:bg-slate-950/50
                              text-slate-900 dark:text-slate-100 uppercase
@@ -412,19 +382,21 @@ export default function CrimpBPage() {
               </div>
             </div>
 
-            {/* Enhanced Primary Measurements */}
+            {/* Enhanced Measurements Grid */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-500"></div>
                 <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Medidas Primarias (Opcionales)
+                  Medidas del Collar
+                  <span className="text-red-500 ml-1">*</span>
                 </h3>
               </div>
               <div className="grid sm:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <Ruler className="w-4 h-4 text-green-500" />
-                    Min
+                    Mínimo
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     value={minv}
@@ -432,6 +404,7 @@ export default function CrimpBPage() {
                     inputMode="decimal"
                     pattern="^\d*\.?\d*$"
                     placeholder="0.00"
+                    required
                     className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
                                text-slate-900 dark:text-slate-100
                                border-slate-200 dark:border-slate-700
@@ -442,7 +415,8 @@ export default function CrimpBPage() {
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <Ruler className="w-4 h-4 text-blue-500" />
-                    Nom
+                    Nominal
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     value={nom}
@@ -450,6 +424,7 @@ export default function CrimpBPage() {
                     inputMode="decimal"
                     pattern="^\d*\.?\d*$"
                     placeholder="0.00"
+                    required
                     className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
                                text-slate-900 dark:text-slate-100
                                border-slate-200 dark:border-slate-700
@@ -460,7 +435,8 @@ export default function CrimpBPage() {
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <Ruler className="w-4 h-4 text-red-500" />
-                    Max
+                    Máximo
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     value={maxv}
@@ -468,6 +444,7 @@ export default function CrimpBPage() {
                     inputMode="decimal"
                     pattern="^\d*\.?\d*$"
                     placeholder="0.00"
+                    required
                     className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
                                text-slate-900 dark:text-slate-100
                                border-slate-200 dark:border-slate-700
@@ -483,53 +460,28 @@ export default function CrimpBPage() {
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-orange-500 to-amber-500"></div>
                 <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Configuración del Engaste (Opcionales)
+                  Configuración del Collar
+                  <span className="text-red-500 ml-1">*</span>
                 </h3>
               </div>
 
-              <div className="grid sm:grid-cols-3 gap-6">
-                {/* Curv Field */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
-                    <Settings className="w-4 h-4 text-orange-500" />
-                    Curv (Una letra)
-                  </label>
-                  <input
-                    value={curv}
-                    onChange={(e) =>
-                      setCurv(e.target.value.slice(0, 1).toUpperCase())
-                    }
-                    placeholder="R"
-                    maxLength={1}
-                    className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
-                               text-slate-900 dark:text-slate-100 uppercase text-center text-2xl font-bold
-                               border-slate-200 dark:border-slate-700
-                               focus:outline-none focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500
-                               transition-all duration-200"
-                  />
-                  <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                    <Info className="w-3 h-3" />
-                    <span>
-                      Ejemplos:{" "}
-                      {examples.curvs.slice(0, 3).join(" • ") || "R, S, T"}
-                    </span>
-                  </div>
-                </div>
-
+              <div className="grid sm:grid-cols-2 gap-6">
                 {/* Dies Field */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
-                    <Wrench className="w-4 h-4 text-amber-500" />
+                    <Wrench className="w-4 h-4 text-orange-500" />
                     Dies (Matrices)
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     value={dies}
                     onChange={(e) => setDies(e.target.value.toUpperCase())}
-                    placeholder="MATRIZ B, DIES SET 2"
+                    placeholder="Ej. FP-35, FP-33, FP-34"
+                    required
                     className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
                                text-slate-900 dark:text-slate-100 uppercase
                                border-slate-200 dark:border-slate-700
-                               focus:outline-none focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500
+                               focus:outline-none focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500
                                transition-all duration-200"
                   />
                   <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
@@ -544,17 +496,19 @@ export default function CrimpBPage() {
                 {/* Crimp Field */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
-                    <Cog className="w-4 h-4 text-rose-500" />
+                    <Settings className="w-4 h-4 text-amber-500" />
                     Tipo de Crimp
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     value={crimp}
                     onChange={(e) => setCrimp(e.target.value.toUpperCase())}
-                    placeholder="NORMAL, ESPECIAL"
+                    placeholder="NORMAL"
+                    required
                     className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
                                text-slate-900 dark:text-slate-100 uppercase
                                border-slate-200 dark:border-slate-700
-                               focus:outline-none focus:ring-4 focus:ring-rose-500/20 focus:border-rose-500
+                               focus:outline-none focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500
                                transition-all duration-200"
                   />
                   <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
@@ -568,90 +522,15 @@ export default function CrimpBPage() {
               </div>
             </div>
 
-            {/* Enhanced Secondary Measurements (O fields) */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-violet-500 to-purple-500"></div>
-                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Medidas Secundarias (Opcionales)
-                </h3>
-              </div>
-              <div className="p-4 rounded-xl bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800">
-                <div className="flex items-center gap-2 text-violet-700 dark:text-violet-400 mb-3">
-                  <Target className="w-4 h-4 flex-shrink-0" />
-                  <p className="text-sm font-medium">
-                    Medidas adicionales para tolerancias específicas del segundo
-                    engaste
-                  </p>
-                </div>
-                <div className="grid sm:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
-                      <Ruler className="w-4 h-4 text-purple-500" />
-                      NomO
-                    </label>
-                    <input
-                      value={nomO}
-                      onChange={(e) => setNomO(numericFilter(e.target.value))}
-                      inputMode="decimal"
-                      pattern="^\d*\.?\d*$"
-                      placeholder="0.00"
-                      className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
-                                 text-slate-900 dark:text-slate-100
-                                 border-slate-200 dark:border-slate-700
-                                 focus:outline-none focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500
-                                 transition-all duration-200 font-mono"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
-                      <Ruler className="w-4 h-4 text-pink-500" />
-                      MaxO
-                    </label>
-                    <input
-                      value={maxO}
-                      onChange={(e) => setMaxO(numericFilter(e.target.value))}
-                      inputMode="decimal"
-                      pattern="^\d*\.?\d*$"
-                      placeholder="0.00"
-                      className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
-                                 text-slate-900 dark:text-slate-100
-                                 border-slate-200 dark:border-slate-700
-                                 focus:outline-none focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500
-                                 transition-all duration-200 font-mono"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
-                      <Ruler className="w-4 h-4 text-red-500" />
-                      MinO
-                    </label>
-                    <input
-                      value={minO}
-                      onChange={(e) => setMinO(numericFilter(e.target.value))}
-                      inputMode="decimal"
-                      pattern="^\d*\.?\d*$"
-                      placeholder="0.00"
-                      className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/50
-                                 text-slate-900 dark:text-slate-100
-                                 border-slate-200 dark:border-slate-700
-                                 focus:outline-none focus:ring-4 focus:ring-red-500/20 focus:border-red-500
-                                 transition-all duration-200 font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Enhanced Submit Button */}
             <div className="flex justify-end pt-6">
               <button
                 disabled={loading || !isFormValid}
                 type="submit"
                 className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-xl
-                           bg-gradient-to-r from-rose-600 via-pink-600 to-red-600 text-white
-                           hover:from-rose-500 hover:via-pink-500 hover:to-red-500
-                           focus:outline-none focus:ring-4 focus:ring-rose-500/20
+                           bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white
+                           hover:from-purple-500 hover:via-violet-500 hover:to-indigo-500
+                           focus:outline-none focus:ring-4 focus:ring-purple-500/20
                            disabled:opacity-50 disabled:cursor-not-allowed
                            transform hover:scale-105 transition-all duration-200
                            shadow-lg hover:shadow-xl font-semibold text-lg"
@@ -668,7 +547,7 @@ export default function CrimpBPage() {
                     ) : (
                       <Save className="w-5 h-5 group-hover:scale-110 transition-transform" />
                     )}
-                    {isEditing ? "Actualizar Crimp B" : "Guardar Crimp B"}
+                    {isEditing ? "Actualizar Collar A" : "Guardar Collar A"}
                     <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
                   </>
                 )}
@@ -679,34 +558,34 @@ export default function CrimpBPage() {
         </div>
 
         {/* Enhanced Info Card */}
-        <div className="mt-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-950/20 dark:to-pink-950/20 shadow-lg p-6">
+        <div className="mt-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/20 dark:to-violet-950/20 shadow-lg p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-rose-500 text-white">
-              <Wrench className="w-4 h-4" />
+            <div className="p-2 rounded-lg bg-purple-500 text-white">
+              <Shield className="w-4 h-4" />
             </div>
             <h4 className="font-bold text-slate-900 dark:text-slate-100">
-              Información del Crimp B
+              Información del Collar A
             </h4>
           </div>
           <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
             <li className="flex items-start gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-2 flex-shrink-0"></div>
+              <div className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-2 flex-shrink-0"></div>
               <span>
-                El <strong>Item</strong> se agrega automáticamente como quinto
-                elemento (<strong>Adds[5]</strong>) del Assembly al crear un
+                El <strong>Item</strong> se agrega automáticamente como cuarto
+                elemento (<strong>Adds[4]</strong>) del Assembly al crear un
                 nuevo registro.
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-pink-500 mt-2 flex-shrink-0"></div>
+              <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-2 flex-shrink-0"></div>
               <span>
-                Solo <strong>Item</strong> (al crear) y{" "}
-                <strong>Description</strong> son obligatorios. Todos los demás
-                campos son opcionales.
+                <strong>Todos los campos son obligatorios</strong> para el
+                Collar A, incluyendo Item (solo al crear), Description,
+                Min/Nom/Max, Dies y Crimp.
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-2 flex-shrink-0"></div>
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 flex-shrink-0"></div>
               <span>
                 Los campos <strong>Description</strong>, <strong>Dies</strong> y{" "}
                 <strong>Crimp</strong> se convierten automáticamente a
@@ -714,17 +593,10 @@ export default function CrimpBPage() {
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-2 flex-shrink-0"></div>
-              <span>
-                Las <strong>medidas secundarias</strong> (MinO, NomO, MaxO) son
-                para tolerancias específicas del segundo engaste.
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 flex-shrink-0"></div>
               <span>
                 En modo edición, el campo <strong>Item</strong> es de solo
-                lectura para mantener la integridad de los datos.
+                lectura para mantener la integridad de los datos del Assembly.
               </span>
             </li>
           </ul>

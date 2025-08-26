@@ -1,4 +1,3 @@
-// src/app/assembly/new/page.jsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Package2,
   Save,
-  ArrowLeft,
   Loader2,
   Scissors,
   Wrench,
@@ -15,10 +13,50 @@ import {
   Sparkles,
   CheckCircle,
   Clock,
+  LogOut,
   Info,
 } from "lucide-react";
 import { useAlert } from "@/components/AlertSystem";
 import { encodeItemId, decodeItemId } from "@/lib/idCodec";
+import GlobalTopbar from "@/components/GlobalTopbar";
+
+//? --- Persistencia de borrador del formulario ---
+const DRAFT_KEY = "assembly:new:draft:v1";
+
+const handleLogout = async () => {
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
+    //! opcional: limpiar el borrador local
+    clearDraft();
+    router.replace("/login");
+  } catch (e) {
+    showError("No se pudo cerrar sesión");
+  }
+};
+
+function loadDraft() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(draft) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {}
+}
+
+function clearDraft() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {}
+}
 
 const MODULES = [
   { key: "Hose Cut", icon: Scissors, color: "from-amber-500 to-orange-500" },
@@ -54,9 +92,33 @@ export default function AssemblyNewPage() {
   });
   const [loading, setLoading] = useState(false);
   const [loadingMeta, setLoadingMeta] = useState(true);
-  const [moduleStatus, setModuleStatus] = useState({}); // Estado de cada módulo
+  const [moduleStatus, setModuleStatus] = useState({}); //* Estado de cada módulo
 
-  // Cargar estado de los módulos cuando hay un item creado
+  //* Al montar, hidrata el formulario desde el borrador guardado
+  useEffect(() => {
+    const draft = loadDraft();
+    if (draft) {
+      setDescripcion(draft.descripcion ?? "");
+      setCustomer(draft.customer ?? "");
+      setNci(draft.nci ?? "");
+      setCustomerRev(draft.customerRev ?? "");
+    }
+  }, []);
+
+  //* Guarda automáticamente cualquier cambio (debounce 250ms)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      saveDraft({
+        descripcion,
+        customer,
+        nci,
+        customerRev,
+      });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [descripcion, customer, nci, customerRev]);
+
+  //* Cargar estado de los módulos cuando hay un item creado
   async function loadModuleStatus() {
     if (!createdItem) {
       setModuleStatus({});
@@ -64,7 +126,7 @@ export default function AssemblyNewPage() {
     }
 
     try {
-      // Hacer peticiones para verificar si cada módulo tiene datos
+      //* Hacer peticiones para verificar si cada módulo tiene datos
       const checks = await Promise.all([
         fetch(`/api/hose?assemblyItem=${createdItem}`, { cache: "no-store" }),
         fetch(`/api/sleeve-guard?assemblyItem=${createdItem}`, {
@@ -102,26 +164,24 @@ export default function AssemblyNewPage() {
         Packaging: results[6]?.ok && results[6]?.packaging ? true : false,
       });
     } catch (e) {
-      // En caso de error, asumir que no hay datos
+      //! En caso de error, asumir que no hay datos
       setModuleStatus({});
     }
   }
 
-  // Ejecutar cuando createdItem cambie
+  //* Ejecutar cuando createdItem cambie
   useEffect(() => {
     loadModuleStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createdItem]);
-  // Leer ?last=<token> cuando regresamos desde un subformulario (Hose, etc.)
+
+  //* Leer ?last=<token> cuando regresamos desde un subformulario (Hose, etc.)
   useEffect(() => {
     const last = searchParams.get("last");
     if (last) {
       const id = decodeItemId(last);
       if (id != null && !Number.isNaN(id)) {
-        setCreatedItem(id); // re-activa módulos y badge de "Item creado"
+        setCreatedItem(id); //* re-activa módulos y badge de "Item creado"
       }
-      // Si quieres, podrías limpiar el query param:
-      // router.replace("/assembly/new#opcionales");
     }
   }, [searchParams]);
 
@@ -155,7 +215,6 @@ export default function AssemblyNewPage() {
 
   useEffect(() => {
     loadMeta();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function onSubmit(e) {
@@ -180,15 +239,10 @@ export default function AssemblyNewPage() {
       setCreatedItem(data.item.Item);
       showSuccess(`Producto registrado con Item ${data.item.Item}`);
 
-      // limpia y recalcula
-      setDescripcion("");
-      setCustomer("");
-      setNci("");
-      setCustomerRev("");
       loadMeta();
 
-      // Cargar estado de módulos después de un breve delay
-      setTimeout(() => loadModuleStatus(), 500);
+      //* Recalcula estado de módulos inmediatamente
+      loadModuleStatus();
     } catch (e) {
       showError(e.message, "Error de Registro");
     } finally {
@@ -232,6 +286,19 @@ export default function AssemblyNewPage() {
     router.push(routeFor(m.key));
   };
 
+  //* Botón "Empezar nuevo registro" — limpia todo y quita query params
+  const handleNewRecord = () => {
+    clearDraft(); //* Limpia borrador persistido
+    setDescripcion(""); //* Limpia formulario
+    setCustomer("");
+    setNci("");
+    setCustomerRev("");
+    setCreatedItem(null); //* Limpia estado del assembly
+    setModuleStatus({}); //* Limpia estado de módulos
+    loadMeta(); //* Recalcula nextItem
+    router.replace("/assembly/new"); //* Quita ?last=... y #anchors
+  };
+
   if (loadingMeta) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 flex items-center justify-center">
@@ -262,53 +329,48 @@ export default function AssemblyNewPage() {
       </div>
 
       {/* Enhanced Topbar */}
-      <header className="relative border-b border-slate-200/60 dark:border-slate-800/60 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 text-white shadow-lg">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="relative max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={handleGoBack}
-                className="group px-4 py-2 rounded-lg bg-white/15 hover:bg-white/25 border border-white/20 backdrop-blur-sm transition-all duration-200 hover:scale-105"
-              >
-                <span className="inline-flex items-center gap-2 text-sm font-medium">
-                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                  Volver
+      <GlobalTopbar
+        title="Nuevo Assembly"
+        subtitle="Sistema de gestión de productos"
+        icon={Package2}
+        gradient="from-indigo-600 via-violet-600 to-purple-600"
+        showBack={false} //! <-- OCULTA "Volver"
+        rightExtra={
+          <div className="flex items-center gap-3">
+            {/* Botón Cerrar sesión */}
+            <button
+              onClick={async () => {
+                await fetch("/api/auth/logout", { method: "POST" });
+                router.replace("/login");
+              }}
+              className="group px-3 sm:px-4 py-2 rounded-lg bg-white/15 hover:bg-white/25 border border-white/20 backdrop-blur-sm transition-all duration-200 hover:scale-105"
+              title="Cerrar sesión"
+            >
+              <span className="inline-flex items-center gap-2 text-sm font-medium">
+                <LogOut className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                <span className="hidden xs:inline sm:inline">
+                  Cerrar sesión
                 </span>
-              </button>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white/15 backdrop-blur-sm">
-                  <Package2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold">Nuevo Assembly</h1>
-                  <p className="text-white/80 text-xs">
-                    Sistema de gestión de productos
-                  </p>
-                </div>
-              </div>
-            </div>
+              </span>
+            </button>
 
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2 text-xs bg-white/15 border border-white/20 px-3 py-2 rounded-lg backdrop-blur-sm">
-                <Clock className="w-4 h-4" />
+            {/* Chip Item creado */}
+            {createdItem && (
+              <div className="flex items-center gap-2 text-xs bg-emerald-500/90 text-white px-3 py-2 rounded-lg border border-emerald-400 shadow-lg">
+                <CheckCircle className="w-4 h-4" />
                 <span>
-                  Siguiente Item:{" "}
-                  <b className="text-yellow-200">{nextItem ?? "—"}</b>
+                  Item creado: <b>#{createdItem}</b>
                 </span>
               </div>
-              {createdItem && (
-                <div className="flex items-center gap-2 text-xs bg-emerald-500/90 text-white px-3 py-2 rounded-lg border border-emerald-400 shadow-lg">
-                  <CheckCircle className="w-4 h-4" />
-                  <span>
-                    Item creado: <b>#{createdItem}</b>
-                  </span>
-                </div>
-              )}
-            </div>
+            )}
           </div>
-        </div>
-      </header>
+        }
+        newButton={{
+          label: "Empezar nuevo registro",
+          onClick: handleNewRecord,
+          icon: Sparkles,
+        }}
+      />
 
       {/* Main Content */}
       <main className="relative max-w-7xl mx-auto px-4 py-8 grid lg:grid-cols-3 gap-8">
@@ -348,7 +410,7 @@ export default function AssemblyNewPage() {
                 <input
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value.toUpperCase())}
-                  placeholder="Ej. Conjunto de transmisión TF-A para aplicaciones industriales"
+                  placeholder="Ej. 8808547, AT500732, 7171210"
                   required
                   className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/40
                              text-slate-900 dark:text-slate-100 placeholder-slate-400
