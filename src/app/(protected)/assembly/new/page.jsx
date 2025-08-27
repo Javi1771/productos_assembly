@@ -12,7 +12,7 @@ import {
   Package as PackageIcon,
   Sparkles,
   CheckCircle,
-  Clock,
+  BarChart2,
   LogOut,
   Info,
 } from "lucide-react";
@@ -337,6 +337,18 @@ export default function AssemblyNewPage() {
         showBack={false} //! <-- OCULTA "Volver"
         rightExtra={
           <div className="flex items-center gap-3">
+            {/* Botón Dashboard */}
+            <button
+              onClick={() => router.push("/assembly/dashboard")}
+              className="group px-3 sm:px-4 py-2 rounded-lg bg-white/15 hover:bg-white/25 border border-white/20 backdrop-blur-sm transition-all duration-200 hover:scale-105"
+              title="Ver Dashboard"
+            >
+              <span className="inline-flex items-center gap-2 text-sm font-medium">
+                <BarChart2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                <span className="hidden xs:inline sm:inline">Dashboard</span>
+              </span>
+            </button>
+
             {/* Botón Cerrar sesión */}
             <button
               onClick={async () => {
