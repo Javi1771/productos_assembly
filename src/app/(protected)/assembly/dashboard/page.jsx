@@ -1,30 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { 
-  Package2, 
-  BarChart2, 
-  Users, 
-  Layers, 
-  Search,
-  Filter,
-  TrendingUp,
-  Activity,
-  Plus,
-  Edit,
-  CheckCircle2,
-  AlertCircle,
-  ArrowUpRight,
-  Loader2,
-  RefreshCw,
-  X,
-  Hash,
-  Building2,
-  Target,
-  PieChart,
-  BarChart3,
-  LogOut
-} from "lucide-react";
+import {  Package2,  BarChart2,  Users,  Layers,  Search, 
+  Filter, TrendingUp, Activity, Plus, Edit, CheckCircle2, 
+  AlertCircle, Loader2, RefreshCw, X, Hash, Building2, Target, 
+  PieChart, BarChart3 } from "lucide-react";
 import GlobalTopbar from "@/components/GlobalTopbar";
 import InteractiveKPICard from "@/components/InteractiveKPICard";
 
@@ -107,11 +87,11 @@ export default function DashboardPage() {
     currentPage * itemsPerPage
   );
 
-  const handleEditAssembly = (item) => {
-    //* Ir a la página de edición con el token del item
-    const token = encodeItemId(item);
-    window.location.href = `/assembly/new?last=${encodeURIComponent(token)}`;
-  };
+const handleEditAssembly = (item) => {
+  const token = encodeItemId(item);
+  window.location.href = `/assembly/new?edit=1&item=${encodeURIComponent(token)}`;
+};
+
 
   const getModuleCompletionCount = (modules) => {
     return MODULES_ORDER.reduce((count, module) => 
