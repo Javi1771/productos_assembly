@@ -111,7 +111,6 @@ export async function GET() {
         id: O.id, correo: O.email, nombre: O.nombre, apellido: O.apellido,
         nomina: O.nomina, rfid: O.rfid
       });
-      //* si la tabla Operadores no tiene col de rol, ponemos 3 por convención
       const rol = O.rol ? row[O.rol] : 3;
       return { ...base, rol, source: "operadores" };
     });
@@ -150,9 +149,10 @@ export async function POST(req) {
       if (!correo) return NextResponse.json({ ok:false, error:"Correo obligatorio para admin/calidad" }, { status:400 });
       if (!password) return NextResponse.json({ ok:false, error:"Password obligatorio para admin/calidad" }, { status:400 });
     } else {
-      //* Operadores: rfid requerido
+      //* Operadores: RFID requerido
       if (!RFID) return NextResponse.json({ ok:false, error:"No hay columna RFID en Operadores" }, { status:500 });
       if (!rfid) return NextResponse.json({ ok:false, error:"RFID es obligatorio para operadores" }, { status:400 });
+      //* El correo y la contraseña pueden ser opcionales en operadores (según tu modelo)
     }
 
     const reqq = pool.request();
@@ -166,17 +166,18 @@ export async function POST(req) {
     if (Ape)              { setCols.push(Ape);    setVals.push("@apellido");reqq.input("apellido", MSSQL.NVarChar, apellido); }
     if (Nomina)           { setCols.push(Nomina); setVals.push("@nomina");  reqq.input("nomina", MSSQL.NVarChar, nomina); }
     if (RFID && rfid)     { setCols.push(RFID);   setVals.push("@rfid");    reqq.input("rfid", MSSQL.NVarChar, rfid); }
+
     if (targetTable === USERS_TABLE) {
+      //* Usuarios (admin/calidad): SIEMPRE cifrado
       const hash = await bcrypt.hash(password, 10);
       setCols.push(Pass); setVals.push("@hash"); reqq.input("hash", MSSQL.NVarChar, hash);
       if (Rol) { setCols.push(Rol); setVals.push("@rol"); reqq.input("rol", MSSQL.Int, Number(rol)); }
     } else {
-      if (Rol) { setCols.push(Rol); setVals.push("@rol"); reqq.input("rol", MSSQL.Int, 3); } //* si existe, forzamos 3
-      //* algunos operadores pueden tener password; si existe la columna y mandan password, lo guardamos
+      //* Operadores: contraseña en TEXTO PLANO (solo si viene y existe columna)
       if (Pass && password) {
-        const hash = await bcrypt.hash(password, 10);
-        setCols.push(Pass); setVals.push("@hash"); reqq.input("hash", MSSQL.NVarChar, hash);
+        setCols.push(Pass); setVals.push("@pass"); reqq.input("pass", MSSQL.NVarChar, password);
       }
+      if (Rol) { setCols.push(Rol); setVals.push("@rol"); reqq.input("rol", MSSQL.Int, 3); } //* si existe, forzamos 3
     }
 
     if (!setCols.length) {

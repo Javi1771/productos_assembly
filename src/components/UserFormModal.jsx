@@ -30,10 +30,22 @@ const ROLE_OPTIONS = [
   },
 ];
 
-// Validadores
+//* Validadores
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 const NAME_RE = /^[a-záéíóúüñ.'\-\s]{2,}$/i;
 const DIGITS_RE = /^\d+$/;
+
+const EMPTY_FORM = {
+  id: null,
+  source: null,
+  correo: "",
+  password: "",
+  nombre: "",
+  apellido: "",
+  nomina: "",
+  rol: 3,
+  rfid: "",
+};
 
 export default function UserFormModal({ 
   show, 
@@ -45,23 +57,14 @@ export default function UserFormModal({
 }) {
   const isEdit = initialData?.id != null;
 
-  const [form, setForm] = useState({
-    id: initialData?.id || null,
-    source: initialData?.source || null,
-    correo: initialData?.correo || "",
-    password: "",
-    nombre: initialData?.nombre || "",
-    apellido: initialData?.apellido || "",
-    nomina: initialData?.nomina || "",
-    rol: Number(initialData?.rol) || 3,
-    rfid: initialData?.rfid || "",
-  });
+  //? ⬇️ Estado SIEMPRE arranca vacío; luego effects lo rellenan según corresponda
+  const [form, setForm] = useState(EMPTY_FORM);
 
   const [errors, setErrors] = useState({
     correo: "", password: "", nombre: "", apellido: "", nomina: "", rfid: "", rol: ""
   });
 
-  // ---- utils de validación por campo
+  //? ---- utils de validación por campo
   function validateField(name, value) {
     const v = String(value || "").trim();
     switch (name) {
@@ -70,7 +73,6 @@ export default function UserFormModal({
         if (!EMAIL_RE.test(v)) return "Formato de correo inválido.";
         return "";
       case "password":
-        // <-- contraseña opcional en edición
         if (isEdit && v.length === 0) return "";
         if (!v) return "La contraseña es obligatoria.";
         if (v.length < 8) return "La contraseña debe tener al menos 8 caracteres.";
@@ -116,7 +118,7 @@ export default function UserFormModal({
     return { ok: !firstError, firstError };
   }
 
-  // sincronizar al abrir/editar
+  //? 🔁 Rellenar cuando ABRES en modo EDITAR
   useEffect(() => {
     if (initialData) {
       setForm({
@@ -134,6 +136,14 @@ export default function UserFormModal({
     }
   }, [initialData]);
 
+  //? 🆕 Reset TOTAL al abrir en modo NUEVO (sin initialData)
+  useEffect(() => {
+    if (show && !initialData) {
+      setForm(EMPTY_FORM);
+      setErrors({ correo: "", password: "", nombre: "", apellido: "", nomina: "", rfid: "", rol: "" });
+    }
+  }, [show, initialData]);
+
   const setFormValue = (patch) => setForm((prev) => ({ ...prev, ...patch }));
 
   const handleSubmit = (e) => {
@@ -146,7 +156,6 @@ export default function UserFormModal({
 
     const payload = {
       correo: form.correo.trim().toLowerCase(),
-      // ⚠️ contraseña solo si se proporcionó (en edición puede ir vacía)
       ...(form.password.trim().length > 0 ? { password: form.password.trim() } : {}),
       nombre: form.nombre.trim().toUpperCase(),
       apellido: form.apellido.trim().toUpperCase(),
@@ -382,7 +391,6 @@ export default function UserFormModal({
                 )}
               </label>
               <input
-                // requerido solo al crear
                 required={!isEdit}
                 type="password"
                 value={form.password}
