@@ -196,7 +196,7 @@ export async function PUT(req, { params }) {
       if (Rol && rol != null)      { sets.push(`${esc(Rol)}=@rol`);      reqq.input("rol", MSSQL.Int, Number(rol)); }
 
       if (Pass && password !== undefined && password !== null) {
-        // *** Importante: Operadores => NO cifrar ***
+        //! *** Importante: Operadores => NO cifrar ***
         const isOperatorTable = (curTable === OPERATORS_TABLE) || (!rol ? (curTable===OPERATORS_TABLE) : (Number(rol) !== 1 && Number(rol) !== 2));
         const finalPass = isOperatorTable ? password : await bcrypt.hash(password, 10);
         sets.push(`${esc(Pass)}=@pass`);
