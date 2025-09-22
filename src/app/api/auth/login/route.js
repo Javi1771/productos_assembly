@@ -26,6 +26,7 @@ const CANDIDATES = {
   nombre:   ["NombreCompleto","nombre_completo","Nombre completo","Nombre","nombre","FullName","full_name","Nombres","nombres"],
   apellido: ["Apellido","apellidos","Apellidos","apellido","PrimerApellido","SegundoApellido"],
   rol:      ["Rol","rol","Role","Perfil","perfil","TipoUsuario","tipo_usuario","Tipo","tipo","Cargo","cargo"],
+  nomina:   ["Nomina","NoNomina","NumNomina","NumeroNomina","nomina","no_nomina","num_nomina","numero_nomina"], 
 };
 
 function findColumn(cols, candidates) {
@@ -173,16 +174,17 @@ export async function POST(req) {
 
     //* ---- columnas de USUARIOS ----
     const usersCols = await getTableColumns(pool, SCHEMA, USERS_TABLE);
-    const uEmailCol = findColumn(usersCols, CANDIDATES.email);
-    const uPassCol  = findColumn(usersCols, CANDIDATES.password);
-    let   uIdCol    = findColumn(usersCols, CANDIDATES.id);
-    let   uNomCol   = findColumn(usersCols, CANDIDATES.nombre);
-    let   uApeCol   = findColumn(usersCols, CANDIDATES.apellido);
-    let   uRolCol   = findColumn(usersCols, CANDIDATES.rol);
+    const uEmailCol   = findColumn(usersCols, CANDIDATES.email);
+    const uPassCol    = findColumn(usersCols, CANDIDATES.password);
+    let   uIdCol      = findColumn(usersCols, CANDIDATES.id);
+    let   uNomCol     = findColumn(usersCols, CANDIDATES.nombre);
+    let   uApeCol     = findColumn(usersCols, CANDIDATES.apellido);
+    let   uRolCol     = findColumn(usersCols, CANDIDATES.rol);
+    let   uNominaCol  = findColumn(usersCols, CANDIDATES.nomina); // 👈 NUEVO
 
     console.log("[login] columns[USUARIOS]:", {
       table: USERS_TABLE,
-      uEmailCol, uPassCol, uIdCol, uNomCol, uApeCol, uRolCol
+      uEmailCol, uPassCol, uIdCol, uNomCol, uApeCol, uRolCol, uNominaCol
     });
 
     if (!uEmailCol || !uPassCol) {
@@ -195,12 +197,17 @@ export async function POST(req) {
     //* Para leer el correo del registro encontrado sin tocar uEmailCol
     let emailColForFound = uEmailCol;
 
-    //? ---- Intento #1: USUARIOS ----
-    let found = await fetchByEmailLoose(pool, SCHEMA, USERS_TABLE, uEmailCol, correo);
+    //* Para recordar de qué tabla vino y cuál es su columna de nómina
     let source = null;
+    let found  = null;
+    let currNominaCol = null; //* columna de nómina (según la tabla)
+
+    //? ---- Intento #1: USUARIOS ----
+    found = await fetchByEmailLoose(pool, SCHEMA, USERS_TABLE, uEmailCol, correo);
 
     if (found) {
       source = "USUARIOS";
+      currNominaCol = uNominaCol; //* apúntala para usar después
 
       //* Log comparativo input vs DB
       const inputEmail   = String(correo);
@@ -234,17 +241,18 @@ export async function POST(req) {
       }
     } else {
       //? ---- Intento #2: PROVEEDORES ----
-      const provCols = await getTableColumns(pool, SCHEMA, PROV_TABLE);
+      const provCols  = await getTableColumns(pool, SCHEMA, PROV_TABLE);
       const pEmailCol = findColumn(provCols, CANDIDATES.email);
       const pPassCol  = findColumn(provCols, CANDIDATES.password);
       const pIdCol    = findColumn(provCols, CANDIDATES.id);
       const pNomCol   = findColumn(provCols, CANDIDATES.nombre);
       const pApeCol   = findColumn(provCols, CANDIDATES.apellido);
       const pRolCol   = findColumn(provCols, CANDIDATES.rol);
+      const pNominaCol= findColumn(provCols, CANDIDATES.nomina); 
 
       console.log("[login] columns[PROVEEDORES]:", {
         table: PROV_TABLE,
-        pEmailCol, pPassCol, pIdCol, pNomCol, pApeCol, pRolCol
+        pEmailCol, pPassCol, pIdCol, pNomCol, pApeCol, pRolCol, pNominaCol
       });
 
       if (!pEmailCol || !pPassCol) {
@@ -258,6 +266,8 @@ export async function POST(req) {
       }
 
       source = "PROVEEDORES";
+      found  = prov;
+      currNominaCol = pNominaCol; 
 
       //* Log comparativo input vs DB (proveedores)
       const inputEmail   = String(correo);
@@ -282,7 +292,6 @@ export async function POST(req) {
       }
 
       //* Homogeneizar referencias (sin tocar uEmailCol)
-      found            = prov;
       uIdCol           = pIdCol;
       uNomCol          = pNomCol;
       uApeCol          = pApeCol;
@@ -296,11 +305,20 @@ export async function POST(req) {
     const nombre   = buildDisplayName(found, uNomCol, uApeCol);
     const rol      = extractRole(found, uRolCol);
 
+    //* NUEVO: extraer nómina según la columna detectada y con fallback si el ID es "Nomina"
+    let nominaVal = null;
+    if (currNominaCol && found[currNominaCol] != null && String(found[currNominaCol]).trim() !== "") {
+      nominaVal = found[currNominaCol];
+    } else if (uIdCol && String(uIdCol).toLowerCase() === "nomina") {
+      nominaVal = found[uIdCol];
+    }
+
     const token = await signSession({
       sub: idVal ? String(idVal) : undefined,
       email: String(emailVal),
       rol,
       src: source,
+      nomina: nominaVal != null ? String(nominaVal) : undefined,
     });
 
     const res = NextResponse.json({
@@ -311,6 +329,7 @@ export async function POST(req) {
         correo: emailVal,
         nombre,
         rol,
+        nomina: nominaVal ?? null, //* útil para debug/cliente
       },
     });
 
@@ -338,6 +357,26 @@ export async function POST(req) {
       path: "/",
       maxAge: 60 * 60 * 8,
     });
+
+    //* NUEVO: setea cookie pública con la nómina (si existe)
+    if (nominaVal != null && String(nominaVal).trim() !== "") {
+      res.cookies.set("u_nomina", encodeURIComponent(String(nominaVal).trim()), {
+        httpOnly: false,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 8,
+      });
+    } else {
+      //! Limpia cookie vieja si no aplica
+      res.cookies.set("u_nomina", "", {
+        httpOnly: false,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 0,
+      });
+    }
 
     return res;
   } catch (err) {

@@ -1,13 +1,12 @@
-// src/components/AlertSystem.jsx
 "use client";
 
 import { useState, useEffect, createContext, useContext } from "react";
 import { CheckCircle, XCircle, AlertTriangle, X } from "lucide-react";
 
-// Context para las alertas
+//* Context para las alertas
 const AlertContext = createContext();
 
-// Hook para usar las alertas
+//* Hook para usar las alertas
 export const useAlert = () => {
   const context = useContext(AlertContext);
   if (!context) {
@@ -16,19 +15,19 @@ export const useAlert = () => {
   return context;
 };
 
-// Componente individual de alerta
+//* Componente individual de alerta
 const Alert = ({ alert, onRemove }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
-    // Animación de entrada
+    //* Animación de entrada
     const timer = setTimeout(() => setIsVisible(true), 100);
     return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    // Auto-remove después de la duración especificada
+    //* Auto-remove después de la duración especificada
     if (alert.duration && alert.duration > 0) {
       const timer = setTimeout(() => handleRemove(), alert.duration);
       return () => clearTimeout(timer);
@@ -37,7 +36,7 @@ const Alert = ({ alert, onRemove }) => {
 
   const handleRemove = () => {
     setIsExiting(true);
-    setTimeout(() => onRemove(alert.id), 300); // Tiempo de animación de salida
+    setTimeout(() => onRemove(alert.id), 300); //* Tiempo de animación de salida
   };
 
   const getIcon = () => {
@@ -123,7 +122,7 @@ const Alert = ({ alert, onRemove }) => {
   );
 };
 
-// Contenedor de alertas
+//* Contenedor de alertas
 const AlertContainer = ({ alerts, removeAlert }) => {
   return (
     <div className="fixed top-4 right-4 z-50 space-y-2">
@@ -138,7 +137,7 @@ const AlertContainer = ({ alerts, removeAlert }) => {
   );
 };
 
-// Provider de alertas
+//* Provider de alertas
 export const AlertProvider = ({ children }) => {
   const [alerts, setAlerts] = useState([]);
 
@@ -146,7 +145,7 @@ export const AlertProvider = ({ children }) => {
     type = "success",
     title,
     message,
-    duration = 5000, // 5 segundos por defecto
+    duration = 5000, //* 5 segundos por defecto
   }) => {
     const id = Date.now() + Math.random();
     const newAlert = {
@@ -159,7 +158,7 @@ export const AlertProvider = ({ children }) => {
 
     setAlerts((prev) => [...prev, newAlert]);
     
-    return id; // Retorna el ID para poder remover manualmente si es necesario
+    return id; //* Retorna el ID para poder remover manualmente si es necesario
   };
 
   const removeAlert = (id) => {
@@ -170,7 +169,7 @@ export const AlertProvider = ({ children }) => {
     setAlerts([]);
   };
 
-  // Funciones de conveniencia
+  //* Funciones de conveniencia
   const showSuccess = (message, title = null, duration = 5000) => {
     return addAlert({ type: "success", title, message, duration });
   };
@@ -201,7 +200,7 @@ export const AlertProvider = ({ children }) => {
   );
 };
 
-// Ejemplo de uso en un componente
+//* Ejemplo de uso en un componente
 export const AlertExamples = () => {
   const { showSuccess, showError, showWarning } = useAlert();
 

@@ -1,13 +1,19 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-function getCookie(name) {
+export function getCookie(name) {
   if (typeof document === "undefined") return null;
   const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
   return m ? decodeURIComponent(m[2]) : null;
 }
 
-function getUserRoleFromCookie() {
-  const raw = getCookie("u_rol"); //* se guardó como texto (ej: "1", "2")
+export function getUserRoleFromCookie() {
+  const raw = getCookie("u_rol"); //* "1", "2", etc
   if (!raw) return null;
-  //* normaliza a string "1"/"2"
   return String(raw).trim();
+}
+
+//* Nuevo: lee la nómina (ID del aprobador)
+export function getUserIdFromCookie() {
+  const raw = getCookie("u_nomina") || getCookie("u_id");
+  if (!raw) return null;
+  const n = Number(String(raw).trim());
+  return Number.isFinite(n) ? n : null;
 }

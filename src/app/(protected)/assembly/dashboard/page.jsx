@@ -1,27 +1,56 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {  Package2,  BarChart2,  Users,  Layers,  Search, 
-  Filter, TrendingUp, Activity, Plus, Edit, CheckCircle2, 
-  AlertCircle, Loader2, RefreshCw, X, Hash, Building2, Target, 
-  PieChart, BarChart3 } from "lucide-react";
+import { Package2, BarChart2, Users, Layers, Search, Filter, TrendingUp, Activity, Plus, Edit, CheckCircle2, AlertCircle, Loader2, RefreshCw, X, Hash, Building2, Target, PieChart, BarChart3, } from "lucide-react";
 import GlobalTopbar from "@/components/GlobalTopbar";
+import { useAlert } from "@/components/AlertSystem";
 import InteractiveKPICard from "@/components/InteractiveKPICard";
 
 const MODULES_ORDER = [
   { key: "hose", label: "Hose Cut", color: "bg-amber-500", shortLabel: "Hose" },
-  { key: "sleeve", label: "Sleeve/Guard", color: "bg-blue-500", shortLabel: "Sleeve" },
-  { key: "crimpA", label: "Crimp A", color: "bg-green-500", shortLabel: "CrimpA" },
-  { key: "collarA", label: "Collar A", color: "bg-purple-500", shortLabel: "CollarA" },
-  { key: "crimpB", label: "Crimp B", color: "bg-pink-500", shortLabel: "CrimpB" },
-  { key: "collarB", label: "Collar B", color: "bg-teal-500", shortLabel: "CollarB" },
-  { key: "packaging", label: "Packaging", color: "bg-slate-600", shortLabel: "Pack" },
+  {
+    key: "sleeve",
+    label: "Sleeve/Guard",
+    color: "bg-blue-500",
+    shortLabel: "Sleeve",
+  },
+  {
+    key: "crimpA",
+    label: "Crimp A",
+    color: "bg-green-500",
+    shortLabel: "CrimpA",
+  },
+  {
+    key: "collarA",
+    label: "Collar A",
+    color: "bg-purple-500",
+    shortLabel: "CollarA",
+  },
+  {
+    key: "crimpB",
+    label: "Crimp B",
+    color: "bg-pink-500",
+    shortLabel: "CrimpB",
+  },
+  {
+    key: "collarB",
+    label: "Collar B",
+    color: "bg-teal-500",
+    shortLabel: "CollarB",
+  },
+  {
+    key: "packaging",
+    label: "Packaging",
+    color: "bg-slate-600",
+    shortLabel: "Pack",
+  },
 ];
 
 //* Helper function to encode item ID like in the original code
 function encodeItemId(itemId) {
-  return btoa(itemId.toString()).replace(/[+/=]/g, match => 
-    ({ '+': '-', '/': '_', '=': '' }[match])
+  return btoa(itemId.toString()).replace(
+    /[+/=]/g,
+    (match) => ({ "+": "-", "/": "_", "=": "" }[match])
   );
 }
 
@@ -33,6 +62,8 @@ export default function DashboardPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [approvingId, setApprovingId] = useState(null);
+  const { showError, showSuccess } = useAlert();
   const itemsPerPage = 5;
 
   async function load() {
@@ -40,7 +71,8 @@ export default function DashboardPage() {
     try {
       const r = await fetch("/api/dashboard/summary", { cache: "no-store" });
       const d = await r.json();
-      if (!r.ok || !d?.ok) throw new Error(d?.error || "No se pudo cargar el dashboard");
+      if (!r.ok || !d?.ok)
+        throw new Error(d?.error || "No se pudo cargar el dashboard");
       setData(d);
     } catch (e) {
       console.error(e);
@@ -56,22 +88,23 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (data?.recents) {
-      let filtered = data.recents.filter(item => 
-        item.item.toString().includes(searchTerm) ||
-        item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.nci.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.customerRev.toLowerCase().includes(searchTerm.toLowerCase())
+      let filtered = data.recents.filter(
+        (item) =>
+          item.item.toString().includes(searchTerm) ||
+          item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.nci.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.customerRev.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
       //* Aplicar filtro de completitud
       if (selectedFilter === "complete") {
-        filtered = filtered.filter(item => 
-          MODULES_ORDER.every(module => item.modules[module.key])
+        filtered = filtered.filter((item) =>
+          MODULES_ORDER.every((module) => item.modules[module.key])
         );
       } else if (selectedFilter === "incomplete") {
-        filtered = filtered.filter(item => 
-          !MODULES_ORDER.every(module => item.modules[module.key])
+        filtered = filtered.filter(
+          (item) => !MODULES_ORDER.every((module) => item.modules[module.key])
         );
       }
 
@@ -87,47 +120,98 @@ export default function DashboardPage() {
     currentPage * itemsPerPage
   );
 
-const handleEditAssembly = (item) => {
-  const token = encodeItemId(item);
-  window.location.href = `/assembly/new?edit=1&item=${encodeURIComponent(token)}`;
-};
+  const handleEditAssembly = (item) => {
+    const token = encodeItemId(item);
+    window.location.href = `/assembly/new?edit=1&item=${encodeURIComponent(
+      token
+    )}`;
+  };
 
+  async function handleToggleApprove(item, currentApproved) {
+    try {
+      setApprovingId(item);
+
+      const payload = {
+        item,
+        aprobado: currentApproved ? 0 : 1, //* toggle
+      };
+
+      const r = await fetch("/api/assembly/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+
+      if (!r.ok || !d?.ok) {
+        //! Error específico cuando no hay nómina en cookies
+        if (r.status === 401 && (d?.code === "NO_NOMINA" || d?.error)) {
+          showError(
+            d?.error || "No se pudo aprobar. Inicia sesión nuevamente.",
+            "Sesión requerida"
+          );
+          return;
+        }
+
+        //! Otros errores
+        showError(d?.error || "No se pudo actualizar la aprobación", "Error");
+        return;
+      }
+
+      showSuccess(
+        currentApproved ? "Registro des-aprobado" : "Registro aprobado",
+        "Éxito",
+        3000
+      );
+
+      await load(); //* recarga datos
+    } catch (e) {
+      console.error(e);
+      showError("Error al actualizar la aprobación", "Error");
+    } finally {
+      setApprovingId(null);
+    }
+  }
 
   const getModuleCompletionCount = (modules) => {
-    return MODULES_ORDER.reduce((count, module) => 
-      count + (modules[module.key] ? 1 : 0), 0
+    return MODULES_ORDER.reduce(
+      (count, module) => count + (modules[module.key] ? 1 : 0),
+      0
     );
   };
 
   const getCompletionStatus = (count) => {
     const percentage = (count / MODULES_ORDER.length) * 100;
-    if (percentage === 100) return { 
-      color: "text-emerald-600", 
-      bg: "bg-emerald-50 dark:bg-emerald-950/20", 
-      border: "border-emerald-200 dark:border-emerald-800",
-      label: "Completo",
-      icon: "🎯"
-    };
-    if (percentage >= 70) return { 
-      color: "text-blue-600", 
-      bg: "bg-blue-50 dark:bg-blue-950/20", 
-      border: "border-blue-200 dark:border-blue-800",
-      label: "Avanzado",
-      icon: "⚡"
-    };
-    if (percentage >= 40) return { 
-      color: "text-amber-600", 
-      bg: "bg-amber-50 dark:bg-amber-950/20", 
-      border: "border-amber-200 dark:border-amber-800",
-      label: "En progreso",
-      icon: "🔄"
-    };
-    return { 
-      color: "text-red-600", 
-      bg: "bg-red-50 dark:bg-red-950/20", 
+    if (percentage === 100)
+      return {
+        color: "text-emerald-600",
+        bg: "bg-emerald-50 dark:bg-emerald-950/20",
+        border: "border-emerald-200 dark:border-emerald-800",
+        label: "Completo",
+        icon: "🎯",
+      };
+    if (percentage >= 70)
+      return {
+        color: "text-blue-600",
+        bg: "bg-blue-50 dark:bg-blue-950/20",
+        border: "border-blue-200 dark:border-blue-800",
+        label: "Avanzado",
+        icon: "⚡",
+      };
+    if (percentage >= 40)
+      return {
+        color: "text-amber-600",
+        bg: "bg-amber-50 dark:bg-amber-950/20",
+        border: "border-amber-200 dark:border-amber-800",
+        label: "En progreso",
+        icon: "🔄",
+      };
+    return {
+      color: "text-red-600",
+      bg: "bg-red-50 dark:bg-red-950/20",
       border: "border-red-200 dark:border-red-800",
       label: "Inicial",
-      icon: "🔴"
+      icon: "🔴",
     };
   };
 
@@ -165,8 +249,8 @@ const handleEditAssembly = (item) => {
           <p className="text-sm text-slate-700 dark:text-slate-300 font-medium mb-6">
             No se pudo cargar la información del dashboard.
           </p>
-          <button 
-            onClick={load} 
+          <button
+            onClick={load}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-500 hover:to-violet-500 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
           >
             <RefreshCw className="w-4 h-4" />
@@ -205,7 +289,7 @@ const handleEditAssembly = (item) => {
         }
         newButton={{
           label: "Nuevo Assembly",
-          onClick: () => window.location.href = "/assembly/new",
+          onClick: () => (window.location.href = "/assembly/new"),
           icon: Plus,
         }}
       />
@@ -237,7 +321,10 @@ const handleEditAssembly = (item) => {
             gradient="from-amber-500 to-orange-500"
             data={data}
             type="complete"
-            percentage={((totals.fullyCompleted / totals.assemblies) * 100).toFixed(1)}
+            percentage={(
+              (totals.fullyCompleted / totals.assemblies) *
+              100
+            ).toFixed(1)}
           />
           <InteractiveKPICard
             title="Promedio Módulos"
@@ -272,7 +359,10 @@ const handleEditAssembly = (item) => {
               const pm = perModule[m.key];
               const pct = pm?.percent ?? 0;
               return (
-                <div key={m.key} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 hover:shadow-md transition-all duration-200">
+                <div
+                  key={m.key}
+                  className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 hover:shadow-md transition-all duration-200"
+                >
                   <div className="flex items-center gap-3 mb-3">
                     <div className={`w-4 h-4 rounded-full ${m.color}`}></div>
                     <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">
@@ -281,7 +371,9 @@ const handleEditAssembly = (item) => {
                   </div>
                   <div className="mb-2">
                     <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                      <span>{pm?.count || 0}/{totals.assemblies}</span>
+                      <span>
+                        {pm?.count || 0}/{totals.assemblies}
+                      </span>
                       <span className="font-medium">{pct}%</span>
                     </div>
                     <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
@@ -292,7 +384,7 @@ const handleEditAssembly = (item) => {
                     </div>
                   </div>
                   <div className="text-xs text-slate-400 dark:text-slate-500">
-                    {pct > 0 ? `${pct}% de assemblies` : 'Sin configurar'}
+                    {pct > 0 ? `${pct}% de assemblies` : "Sin configurar"}
                   </div>
                 </div>
               );
@@ -402,30 +494,39 @@ const handleEditAssembly = (item) => {
                       <div className="absolute right-0 top-full mt-2 w-48 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg z-10">
                         <div className="p-2">
                           <button
-                            onClick={() => {setSelectedFilter("all"); setShowFilters(false);}}
+                            onClick={() => {
+                              setSelectedFilter("all");
+                              setShowFilters(false);
+                            }}
                             className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
-                              selectedFilter === "all" 
-                                ? "bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600" 
+                              selectedFilter === "all"
+                                ? "bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600"
                                 : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                             }`}
                           >
                             Todos los assemblies
                           </button>
                           <button
-                            onClick={() => {setSelectedFilter("complete"); setShowFilters(false);}}
+                            onClick={() => {
+                              setSelectedFilter("complete");
+                              setShowFilters(false);
+                            }}
                             className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
-                              selectedFilter === "complete" 
-                                ? "bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600" 
+                              selectedFilter === "complete"
+                                ? "bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600"
                                 : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                             }`}
                           >
                             Solo completos (7/7)
                           </button>
                           <button
-                            onClick={() => {setSelectedFilter("incomplete"); setShowFilters(false);}}
+                            onClick={() => {
+                              setSelectedFilter("incomplete");
+                              setShowFilters(false);
+                            }}
                             className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
-                              selectedFilter === "incomplete" 
-                                ? "bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600" 
+                              selectedFilter === "incomplete"
+                                ? "bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600"
                                 : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                             }`}
                           >
@@ -446,19 +547,39 @@ const handleEditAssembly = (item) => {
                     <th className="px-3 py-3 min-w-[200px]">Descripción</th>
                     <th className="px-3 py-3 w-24 min-w-[100px]">Cliente</th>
                     <th className="px-3 py-3 w-20 min-w-[80px]">NCI</th>
-                    <th className="px-3 py-3 w-32 min-w-[120px] text-center">Estado</th>
-                    <th className="px-3 py-3 w-48 min-w-[180px] text-center">Módulos</th>
-                    <th className="px-3 py-3 w-20 min-w-[80px] text-center">Acciones</th>
+                    <th className="px-3 py-3 w-32 min-w-[120px] text-center">
+                      Estado
+                    </th>
+                    <th className="px-3 py-3 w-48 min-w-[180px] text-center">
+                      Módulos
+                    </th>
+                    <th className="px-3 py-3 w-20 min-w-[80px] text-center">
+                      Acciones
+                    </th>
+                    <th className="px-3 py-3 w-24 min-w-[100px] text-center">
+                      Aprobado
+                    </th>
+                    <th className="px-3 py-3 w-32 min-w-[120px] text-center">
+                      Aprobado por
+                    </th>
+                    <th className="px-3 py-3 w-36 min-w-[140px] text-center">
+                      Fecha
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {paginatedRecents.map((r) => {
                     const completedCount = getModuleCompletionCount(r.modules);
                     const status = getCompletionStatus(completedCount);
-                    const completionPercentage = Math.round((completedCount / MODULES_ORDER.length) * 100);
-                    
+                    const completionPercentage = Math.round(
+                      (completedCount / MODULES_ORDER.length) * 100
+                    );
+
                     return (
-                      <tr key={r.item} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
+                      <tr
+                        key={r.item}
+                        className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group"
+                      >
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-1">
                             <Hash className="w-3 h-3 text-slate-400" />
@@ -487,7 +608,9 @@ const handleEditAssembly = (item) => {
                         </td>
                         <td className="px-3 py-3 text-center">
                           <div className="flex flex-col items-center gap-1">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${status.color} ${status.bg} ${status.border} inline-flex items-center gap-1 whitespace-nowrap`}>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${status.color} ${status.bg} ${status.border} inline-flex items-center gap-1 whitespace-nowrap`}
+                            >
                               <span className="text-xs">{status.icon}</span>
                               <span>{status.label}</span>
                             </span>
@@ -496,7 +619,7 @@ const handleEditAssembly = (item) => {
                                 {completionPercentage}%
                               </span>
                               <div className="w-8 h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                <div 
+                                <div
                                   className="h-1 bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
                                   style={{ width: `${completionPercentage}%` }}
                                 />
@@ -514,10 +637,16 @@ const handleEditAssembly = (item) => {
                                     r.modules[m.key]
                                       ? `${m.color} border-white text-white shadow-sm`
                                       : "bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-400"
-                                  } ${index < 6 ? 'mr-0.5' : ''}`}
-                                  title={`${m.shortLabel}: ${r.modules[m.key] ? 'Configurado' : 'Sin configurar'}`}
+                                  } ${index < 6 ? "mr-0.5" : ""}`}
+                                  title={`${m.shortLabel}: ${
+                                    r.modules[m.key]
+                                      ? "Configurado"
+                                      : "Sin configurar"
+                                  }`}
                                 >
-                                  {r.modules[m.key] ? "✓" : m.shortLabel.charAt(0)}
+                                  {r.modules[m.key]
+                                    ? "✓"
+                                    : m.shortLabel.charAt(0)}
                                 </div>
                               ))}
                               <span className="text-xs text-slate-500 ml-2 font-medium whitespace-nowrap">
@@ -527,64 +656,160 @@ const handleEditAssembly = (item) => {
                           </div>
                         </td>
                         <td className="px-3 py-3 text-center">
-                          <button
-                            onClick={() => handleEditAssembly(r.item)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-700 border border-indigo-200 hover:border-indigo-300 transition-all duration-200 opacity-70 group-hover:opacity-100 whitespace-nowrap"
-                            title="Editar assembly"
-                          >
-                            <Edit className="w-3 h-3" />
-                            <span className="hidden sm:inline">Editar</span>
-                          </button>
+                          <div className="inline-flex items-center gap-2">
+                            {/* Botón Editar */}
+                            <button
+                              onClick={() => handleEditAssembly(r.item)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-indigo-100 hover:bg-indigo-150 text-indigo-600 hover:text-indigo-700 border border-indigo-200 hover:border-indigo-300 transition-all duration-200 opacity-70 group-hover:opacity-100 whitespace-nowrap"
+                              title="Editar assembly"
+                            >
+                              <Edit className="w-3 h-3" />
+                              <span className="hidden sm:inline">Editar</span>
+                            </button>
+
+                            {/* Nuevo: Botón Aprobar/Desaprobar */}
+                            <button
+                              disabled={approvingId === r.item}
+                              onClick={() =>
+                                handleToggleApprove(r.item, r.aprobado)
+                              }
+                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border transition-all duration-200 ${
+                                r.aprobado
+                                  ? "bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300"
+                                  : "bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:border-emerald-300"
+                              }`}
+                              title={r.aprobado ? "Desaprobar" : "Aprobar"}
+                            >
+                              {approvingId === r.item ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : r.aprobado ? (
+                                <>
+                                  <X className="w-3 h-3" />
+                                  <span className="hidden sm:inline">
+                                    Desaprobar
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  <span className="hidden sm:inline">
+                                    Aprobar
+                                  </span>
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </td>
+
+                        {/* Aprobado */}
+                        <td className="px-3 py-3 text-center">
+                          {r.aprobado ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600">
+                              ✅ Sí
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 text-slate-600">
+                              ⭕ No
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Aprobado por (nombre completo si está disponible; si no, ID; si no, guion) */}
+                        <td className="px-3 py-3 text-center">
+                          {r.aprobadoPor?.nombreCompleto ? (
+                            <span className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                              {r.aprobadoPor.nombreCompleto}
+                            </span>
+                          ) : r.aprobadoPorId ? (
+                            <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
+                              {r.aprobadoPorId}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400">-</span>
+                          )}
+                        </td>
+
+                        {/* Fecha de aprobación */}
+                          <td className="px-3 py-3 text-center">
+                            {r.aprobadoEn ? (
+                              <span className="text-xs text-slate-600 dark:text-slate-300">
+                                {/* Forzar zona UTC para que NO se corra a la hora local */}
+                                {new Date(r.aprobadoEn).toLocaleString("es-MX", {
+                                  timeZone: "UTC",
+                                  year: "numeric",
+                                  month: "numeric",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  second: "2-digit",
+                                  hour12: false,
+                                })}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400">-</span>
+                            )}
+                          </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-              
+
               {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-4 border-t border-slate-200 dark:border-slate-700 gap-4">
                   <div className="text-sm text-slate-600 dark:text-slate-400">
-                    <span>Mostrando {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredRecents.length)} de {filteredRecents.length} registros</span>
+                    <span>
+                      Mostrando {(currentPage - 1) * itemsPerPage + 1}-
+                      {Math.min(
+                        currentPage * itemsPerPage,
+                        filteredRecents.length
+                      )}{" "}
+                      de {filteredRecents.length} registros
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      onClick={() =>
+                        setCurrentPage(Math.max(1, currentPage - 1))
+                      }
                       disabled={currentPage === 1}
                       className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-sm font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       Anterior
                     </button>
-                    
+
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
-                        let pageNum;
-                        if (totalPages <= 3) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= 2) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= totalPages - 1) {
-                          pageNum = totalPages - 2 + i;
-                        } else {
-                          pageNum = currentPage - 1 + i;
+                      {Array.from(
+                        { length: Math.min(3, totalPages) },
+                        (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 2) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 1) {
+                            pageNum = totalPages - 2 + i;
+                          } else {
+                            pageNum = currentPage - 1 + i;
+                          }
+
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setCurrentPage(pageNum)}
+                              className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                                currentPage === pageNum
+                                  ? "bg-indigo-600 text-white"
+                                  : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600"
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
                         }
-                        
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => setCurrentPage(pageNum)}
-                            className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
-                              currentPage === pageNum
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600'
-                            }`}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
-                      
+                      )}
+
                       {totalPages > 3 && currentPage < totalPages - 1 && (
                         <>
                           <span className="text-slate-400 px-1">...</span>
@@ -597,9 +822,11 @@ const handleEditAssembly = (item) => {
                         </>
                       )}
                     </div>
-                    
+
                     <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      onClick={() =>
+                        setCurrentPage(Math.min(totalPages, currentPage + 1))
+                      }
                       disabled={currentPage === totalPages}
                       className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-sm font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
@@ -608,20 +835,21 @@ const handleEditAssembly = (item) => {
                   </div>
                 </div>
               )}
-              
+
               {filteredRecents.length === 0 && (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center">
                     <Search className="w-8 h-8 text-slate-400" />
                   </div>
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
-                    {searchTerm ? "No se encontraron resultados" : "No hay registros disponibles"}
+                    {searchTerm
+                      ? "No se encontraron resultados"
+                      : "No hay registros disponibles"}
                   </h3>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                    {searchTerm 
+                    {searchTerm
                       ? `No se encontraron assemblies que coincidan con "${searchTerm}"`
-                      : "Aún no hay assemblies registrados en el sistema"
-                    }
+                      : "Aún no hay assemblies registrados en el sistema"}
                   </p>
                   {searchTerm && (
                     <button
@@ -663,7 +891,11 @@ const handleEditAssembly = (item) => {
                 <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-2 flex-shrink-0"></div>
                 <span>
                   <strong className="text-slate-900 dark:text-slate-100">
-                    {((totals.fullyCompleted / totals.assemblies) * 100).toFixed(1)}%
+                    {(
+                      (totals.fullyCompleted / totals.assemblies) *
+                      100
+                    ).toFixed(1)}
+                    %
                   </strong>{" "}
                   de los assemblies están completamente configurados
                 </span>
