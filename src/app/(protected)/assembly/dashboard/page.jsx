@@ -46,7 +46,6 @@ const MODULES_ORDER = [
   },
 ];
 
-//* Helper function to encode item ID like in the original code
 function encodeItemId(itemId) {
   return btoa(itemId.toString()).replace(
     /[+/=]/g,
@@ -97,7 +96,6 @@ export default function DashboardPage() {
           item.customerRev.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
-      //* Aplicar filtro de completitud
       if (selectedFilter === "complete") {
         filtered = filtered.filter((item) =>
           MODULES_ORDER.every((module) => item.modules[module.key])
@@ -109,31 +107,23 @@ export default function DashboardPage() {
       }
 
       setFilteredRecents(filtered);
-      setCurrentPage(1); //* Resetear a la primera página al cambiar filtros
+      setCurrentPage(1);
     }
   }, [data, searchTerm, selectedFilter]);
 
-  //* Cálculo de paginación
   const totalPages = Math.ceil(filteredRecents.length / itemsPerPage);
   const paginatedRecents = filteredRecents.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  const handleEditAssembly = (item) => {
-    const token = encodeItemId(item);
-    window.location.href = `/assembly/new?edit=1&item=${encodeURIComponent(
-      token
-    )}`;
-  };
-
-  async function handleToggleApprove(item, currentApproved) {
+  async function handleToggleApprove(item, actionType) {
     try {
       setApprovingId(item);
 
       const payload = {
         item,
-        aprobado: currentApproved ? 0 : 1, //* toggle
+        aprobado: actionType === 'aprobar' ? 1 : 0,
       };
 
       const r = await fetch("/api/assembly/approve", {
@@ -144,8 +134,15 @@ export default function DashboardPage() {
       const d = await r.json();
 
       if (!r.ok || !d?.ok) {
-        //! Error específico cuando no hay nómina en cookies
-        if (r.status === 401 && (d?.code === "NO_NOMINA" || d?.error)) {
+        if (d?.code === "REGISTRO_RECHAZADO" || d?.code === "REGISTRO_APROBADO") {
+          showError(
+            d?.error || "Este registro ya no puede ser modificado.",
+            "Registro bloqueado"
+          );
+          return;
+        }
+
+        if (r.status === 401 && d?.code === "NO_NOMINA") {
           showError(
             d?.error || "No se pudo aprobar. Inicia sesión nuevamente.",
             "Sesión requerida"
@@ -153,18 +150,17 @@ export default function DashboardPage() {
           return;
         }
 
-        //! Otros errores
         showError(d?.error || "No se pudo actualizar la aprobación", "Error");
         return;
       }
 
       showSuccess(
-        currentApproved ? "Registro des-aprobado" : "Registro aprobado",
+        actionType === 'aprobar' ? "Registro aprobado" : "Registro rechazado",
         "Éxito",
         3000
       );
 
-      await load(); //* recarga datos
+      await load();
     } catch (e) {
       console.error(e);
       showError("Error al actualizar la aprobación", "Error");
@@ -265,13 +261,11 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950">
-      {/* Decorative background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-indigo-400/10 to-violet-600/10 blur-3xl"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-tr from-blue-400/10 to-cyan-600/10 blur-3xl"></div>
       </div>
 
-      {/* Using GlobalTopbar */}
       <GlobalTopbar
         title="Dashboard de Assembly"
         subtitle="Panel de control y gestión de productos"
@@ -295,7 +289,6 @@ export default function DashboardPage() {
       />
 
       <main className="relative max-w-7xl mx-auto px-4 py-8 space-y-8">
-        {/* Interactive KPI Cards */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <InteractiveKPICard
             title="Total Assemblies"
@@ -337,7 +330,6 @@ export default function DashboardPage() {
           />
         </section>
 
-        {/* Enhanced Module Coverage */}
         <section className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
           <div className="p-6 bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-3">
@@ -393,7 +385,6 @@ export default function DashboardPage() {
         </section>
 
         <div className="grid lg:grid-cols-4 gap-8">
-          {/* Enhanced Top Customers */}
           <div className="lg:col-span-1 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
             <div className="p-5 bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-3">
@@ -441,7 +432,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Enhanced Recent Assemblies */}
           <div className="lg:col-span-3 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
             <div className="p-5 bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-800">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -459,7 +449,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Search Bar */}
                   <div className="relative">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                     <input
@@ -478,7 +467,6 @@ export default function DashboardPage() {
                       </button>
                     )}
                   </div>
-                  {/* Filter Button */}
                   <div className="relative">
                     <button
                       onClick={() => setShowFilters(!showFilters)}
@@ -568,17 +556,24 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {paginatedRecents.map((r) => {
+{paginatedRecents.map((r) => {
                     const completedCount = getModuleCompletionCount(r.modules);
                     const status = getCompletionStatus(completedCount);
                     const completionPercentage = Math.round(
                       (completedCount / MODULES_ORDER.length) * 100
                     );
 
+                    // ✅ CORRECCIÓN: Verificar si tiene estado final basándose en AprobadoPorId
+                    const tieneEstadoFinal = r.aprobadoPorId !== null && r.aprobadoPorId !== undefined;
+                    const isAprobado = tieneEstadoFinal && r.aprobado === true;
+                    const isRechazado = tieneEstadoFinal && r.aprobado === false;
+
                     return (
                       <tr
                         key={r.item}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group"
+                        className={`hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group ${
+                          tieneEstadoFinal ? 'opacity-75' : ''
+                        }`}
                       >
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-1">
@@ -657,64 +652,72 @@ export default function DashboardPage() {
                         </td>
                         <td className="px-3 py-3 text-center">
                           <div className="inline-flex items-center gap-2">
-                            {/* Botón Editar */}
-                            <button
-                              onClick={() => handleEditAssembly(r.item)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-indigo-100 hover:bg-indigo-150 text-indigo-600 hover:text-indigo-700 border border-indigo-200 hover:border-indigo-300 transition-all duration-200 opacity-70 group-hover:opacity-100 whitespace-nowrap"
-                              title="Editar assembly"
-                            >
-                              <Edit className="w-3 h-3" />
-                              <span className="hidden sm:inline">Editar</span>
-                            </button>
+                            {/* Solo mostrar botones si NO tiene estado final */}
+                            {!tieneEstadoFinal && (
+                              <>
+                                {/* Botón Aprobar */}
+                                <button
+                                  disabled={approvingId === r.item}
+                                  onClick={() => handleToggleApprove(r.item, 'aprobar')}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border transition-all duration-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:border-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Aprobar"
+                                >
+                                  {approvingId === r.item ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      <span className="hidden sm:inline">Aprobar</span>
+                                    </>
+                                  )}
+                                </button>
 
-                            {/* Nuevo: Botón Aprobar/Desaprobar */}
-                            <button
-                              disabled={approvingId === r.item}
-                              onClick={() =>
-                                handleToggleApprove(r.item, r.aprobado)
-                              }
-                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border transition-all duration-200 ${
-                                r.aprobado
-                                  ? "bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300"
-                                  : "bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:border-emerald-300"
-                              }`}
-                              title={r.aprobado ? "Desaprobar" : "Aprobar"}
-                            >
-                              {approvingId === r.item ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : r.aprobado ? (
-                                <>
-                                  <X className="w-3 h-3" />
-                                  <span className="hidden sm:inline">
-                                    Desaprobar
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  <span className="hidden sm:inline">
-                                    Aprobar
-                                  </span>
-                                </>
-                              )}
-                            </button>
+                                {/* Botón Rechazar */}
+                                <button
+                                  disabled={approvingId === r.item}
+                                  onClick={() => handleToggleApprove(r.item, 'rechazar')}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border transition-all duration-200 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Rechazar"
+                                >
+                                  {approvingId === r.item ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <X className="w-3 h-3" />
+                                      <span className="hidden sm:inline">Rechazar</span>
+                                    </>
+                                  )}
+                                </button>
+                              </>
+                            )}
+
+                            {/* Mostrar estado final si ya fue procesado */}
+                            {tieneEstadoFinal && (
+                              <span className="text-xs text-slate-500 dark:text-slate-400 italic">
+                                {isAprobado ? '✓ Ya aprobado' : '✗ Ya rechazado'}
+                              </span>
+                            )}
                           </div>
                         </td>
 
-                        {/* Aprobado */}
+                        {/* Estado Aprobado */}
                         <td className="px-3 py-3 text-center">
-                          {r.aprobado ? (
+                          {isAprobado ? (
                             <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600">
-                              ✅ Sí
+                              ✅ Aprobado
+                            </span>
+                          ) : isRechazado ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 text-red-600">
+                              🚫 Rechazado
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 text-slate-600">
-                              ⭕ No
+                              ⭕ Pendiente
                             </span>
                           )}
                         </td>
 
-                        {/* Aprobado por (nombre completo si está disponible; si no, ID; si no, guion) */}
+                        {/* Aprobado por */}
                         <td className="px-3 py-3 text-center">
                           {r.aprobadoPor?.nombreCompleto ? (
                             <span className="text-xs font-medium text-slate-800 dark:text-slate-200">
@@ -729,26 +732,25 @@ export default function DashboardPage() {
                           )}
                         </td>
 
-                        {/* Fecha de aprobación */}
-                          <td className="px-3 py-3 text-center">
-                            {r.aprobadoEn ? (
-                              <span className="text-xs text-slate-600 dark:text-slate-300">
-                                {/* Forzar zona UTC para que NO se corra a la hora local */}
-                                {new Date(r.aprobadoEn).toLocaleString("es-MX", {
-                                  timeZone: "UTC",
-                                  year: "numeric",
-                                  month: "numeric",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  second: "2-digit",
-                                  hour12: false,
-                                })}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-slate-400">-</span>
-                            )}
-                          </td>
+                        {/* Fecha */}
+                        <td className="px-3 py-3 text-center">
+                          {r.aprobadoEn ? (
+                            <span className="text-xs text-slate-600 dark:text-slate-300">
+                              {new Date(r.aprobadoEn).toLocaleString("es-MX", {
+                                timeZone: "UTC",
+                                year: "numeric",
+                                month: "numeric",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                second: "2-digit",
+                                hour12: false,
+                              })}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400">-</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}

@@ -9,7 +9,6 @@ export async function POST(req) {
     const body = await req.json();
     const { item, aprobado } = body || {};
 
-    //* Normaliza aprobado a 0/1
     const aprobadoNum =
       aprobado === true || aprobado === 1 || aprobado === "1" ? 1 : 0;
 
@@ -20,44 +19,67 @@ export async function POST(req) {
       );
     }
 
-    //* NEXT dynamic API: await cookies()
+    const pool = await getPool();
+
+    //! Verificar el estado actual del registro
+    const checkSql = `
+      SELECT Aprobado, AprobadoPorId
+      FROM [dbo].[Assembly]
+      WHERE Item = @item
+    `;
+    const checkResult = await pool.request().input("item", item).query(checkSql);
+    
+    if (checkResult.recordset.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: "No se encontró el registro" },
+        { status: 404 }
+      );
+    }
+
+    const registro = checkResult.recordset[0];
+    
+    //! Si ya tiene un estado final (AprobadoPorId no es null), no permitir cambios
+    if (registro.AprobadoPorId !== null) {
+      const estadoActual = registro.Aprobado === 1 ? "aprobado" : "rechazado";
+      return NextResponse.json(
+        {
+          ok: false,
+          code: registro.Aprobado === 1 ? "REGISTRO_APROBADO" : "REGISTRO_RECHAZADO",
+          error: `Este registro ya fue ${estadoActual} y no puede ser modificado.`
+        },
+        { status: 403 }
+      );
+    }
+
     const cookieStore = await cookies();
     const rawNomina = cookieStore.get("u_nomina")?.value ?? "";
     const decodedNomina = rawNomina ? decodeURIComponent(rawNomina) : "";
     const nominaFromCookie = Number(decodedNomina);
 
-    //! ❗ Reglas:
-    //! - Si quieren APROBAR (1) y NO hay nómina válida → rechazar
-    //! - Si quieren DESAPROBAR (0) → permitir aunque no haya nómina
-    if (aprobadoNum === 1 && !Number.isFinite(nominaFromCookie)) {
+    if (!Number.isFinite(nominaFromCookie)) {
       return NextResponse.json(
         {
           ok: false,
           code: "NO_NOMINA",
-          error:
-            "No se puede aprobar porque no hay nómina en tu sesión. Por favor, inicia sesión nuevamente.",
+          error: "No hay nómina en tu sesión. Por favor, inicia sesión nuevamente.",
         },
         { status: 401 }
       );
     }
 
-    const aprobadoPorId =
-      aprobadoNum === 1 ? nominaFromCookie : null;
-
-    const pool = await getPool();
     const sql = `
       UPDATE [dbo].[Assembly]
       SET
         Aprobado      = @aprobado,
-        AprobadoPorId = CASE WHEN @aprobado = 1 THEN @aprobadoPorId ELSE NULL END,
-        AprobadoEn    = CASE WHEN @aprobado = 1 THEN SYSDATETIME() ELSE NULL END
+        AprobadoPorId = @aprobadoPorId,
+        AprobadoEn    = SYSDATETIME()
       WHERE Item = @item
     `;
 
     await pool
       .request()
       .input("aprobado", aprobadoNum)
-      .input("aprobadoPorId", aprobadoNum === 1 ? aprobadoPorId : null)
+      .input("aprobadoPorId", nominaFromCookie)
       .input("item", item)
       .query(sql);
 
