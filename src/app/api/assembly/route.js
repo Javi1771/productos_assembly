@@ -2,23 +2,22 @@ import { NextResponse } from "next/server";
 import { getPool, MSSQL } from "@/lib/mssql";
 
 //* GET
-//* - sin query "item": devuelve nextItem (tu lógica existente)
+//* - sin query "item": (ya no devuelve nextItem)
 //* - con query "item": devuelve el assembly para prellenar el form
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const item = searchParams.get("item");
 
-    const pool = await getPool();
-
     if (!item) {
-      const r = await pool.request().query(`
-        SELECT ISNULL(MAX([Item]), 0) + 1 AS nextItem
-        FROM [dbo].[Assembly];
-      `);
-      const nextItem = r.recordset?.[0]?.nextItem ?? null;
-      return NextResponse.json({ ok: true, nextItem });
+      //* Cambiamos el comportamiento: sin item ya no calculamos nextItem
+      return NextResponse.json(
+        { ok: false, error: "Parámetro 'item' requerido" },
+        { status: 400 }
+      );
     }
+
+    const pool = await getPool();
 
     //? --- GET específico por item ---
     const r2 = await pool
@@ -42,23 +41,38 @@ export async function GET(req) {
   }
 }
 
-//? POST (tu create de siempre)
+//? POST -> crear con Item proporcionado por el cliente
 export async function POST(req) {
   try {
-    const { descripcion, customer, nci, customerRev } = await req.json();
+    const { item, descripcion, customer, nci, customerRev } = await req.json();
+
+    //* Validaciones
+    const parsed = Number(item);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return NextResponse.json(
+        { ok: false, error: "Item inválido. Debe ser un entero positivo." },
+        { status: 400 }
+      );
+    }
+
     const pool = await getPool();
 
-    //* calcula siguiente item
-    const r1 = await pool.request().query(`
-      SELECT ISNULL(MAX([Item]), 0) + 1 AS nextItem
-      FROM [dbo].[Assembly];
-    `);
-    const nextItem = r1.recordset?.[0]?.nextItem ?? null;
+    //! Validar duplicado
+    const exists = await pool
+      .request()
+      .input("Item", MSSQL.Int, parsed)
+      .query(`SELECT 1 FROM [dbo].[Assembly] WHERE [Item]=@Item`);
+    if (exists.recordset.length > 0) {
+      return NextResponse.json(
+        { ok: false, error: `El Item ${parsed} ya existe.` },
+        { status: 409 }
+      );
+    }
 
-    //* inserta
+    //* Insertar
     await pool
       .request()
-      .input("Item", MSSQL.Int, nextItem)
+      .input("Item", MSSQL.Int, parsed)
       .input("Description", MSSQL.NVarChar, descripcion || "")
       .input("Customer", MSSQL.NVarChar, customer || "")
       .input("NCI", MSSQL.NVarChar, nci || "")
@@ -69,14 +83,14 @@ export async function POST(req) {
         VALUES (@Item,@Description,@Customer,@NCI,@CustomerRev,@Adds)
       `);
 
-    return NextResponse.json({ ok: true, item: { Item: nextItem } });
+    return NextResponse.json({ ok: true, item: { Item: parsed } });
   } catch (err) {
     console.error("[assembly][POST] error:", err);
     return NextResponse.json({ ok: false, error: "No se pudo registrar" }, { status: 500 });
   }
 }
 
-//? PUT ?item=123  -> actualiza el assembly existente
+//? PUT ?item=123  -> actualiza el assembly existente (no cambia el Item)
 export async function PUT(req) {
   try {
     const { searchParams } = new URL(req.url);

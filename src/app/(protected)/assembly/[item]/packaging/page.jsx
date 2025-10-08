@@ -16,7 +16,6 @@ import {
   Hash,
   CheckCircle,
   Zap,
-  Box,
   Tag,
   Shield,
 } from "lucide-react";
@@ -36,22 +35,23 @@ export default function PackagingPage() {
 
   const [isEditing, setIsEditing] = useState(false);
 
+  //! ya no se captura item; solo se muestra (siempre = assemblyItem)
+  //!    mantenemos el estado para el input de solo lectura
   const [item, setItem] = useState("");
+
   const [minv, setMinv] = useState("");
   const [nom, setNom] = useState("");
   const [maxv, setMaxv] = useState("");
   const [capA, setCapA] = useState("");
   const [capB, setCapB] = useState("");
 
-  const [examples, setExamples] = useState({ items: [], capA: [], capB: [] });
+  const [examples, setExamples] = useState({ capA: [], capB: [] }); //* quitamos examples.items
   const [loading, setLoading] = useState(false);
   const [loadingMeta, setLoadingMeta] = useState(true);
 
   const backToNew = () => {
     if (!token) return router.replace("/assembly/new");
-    router.replace(
-      `/assembly/new?last=${encodeURIComponent(token)}#opcionales`
-    );
+    router.replace(`/assembly/new?last=${encodeURIComponent(token)}#opcionales`);
   };
 
   const numericFilter = (raw) => {
@@ -71,26 +71,22 @@ export default function PackagingPage() {
     try {
       const [rex, rcur] = await Promise.all([
         fetch("/api/packaging/examples", { cache: "no-store" }),
-        fetch(`/api/packaging?assemblyItem=${assemblyItem}`, {
-          cache: "no-store",
-        }),
+        fetch(`/api/packaging?assemblyItem=${assemblyItem}`, { cache: "no-store" }),
       ]);
       const dex = await rex.json();
       const dcur = await rcur.json();
 
-      if (!rex.ok || !dex?.ok)
-        throw new Error(dex?.error || "No se pudieron cargar ejemplos");
+      if (!rex.ok || !dex?.ok) throw new Error(dex?.error || "No se pudieron cargar ejemplos");
       setExamples({
-        items: dex.items || [],
         capA: dex.capA || [],
         capB: dex.capB || [],
       });
 
-      if (!rcur.ok || !dcur?.ok)
-        throw new Error(dcur?.error || "No se pudo obtener Packaging");
+      if (!rcur.ok || !dcur?.ok) throw new Error(dcur?.error || "No se pudo obtener Packaging");
       if (dcur.packaging) {
         setIsEditing(true);
-        setItem(dcur.packaging.Item != null ? String(dcur.packaging.Item) : "");
+        //* el item mostrado SIEMPRE viene del assembly
+        setItem(String(assemblyItem));
         setMinv(dcur.packaging.Min != null ? String(dcur.packaging.Min) : "");
         setNom(dcur.packaging.Nom != null ? String(dcur.packaging.Nom) : "");
         setMaxv(dcur.packaging.Max != null ? String(dcur.packaging.Max) : "");
@@ -98,6 +94,7 @@ export default function PackagingPage() {
         setCapB(dcur.packaging.CapB ?? "");
       } else {
         setIsEditing(false);
+        setItem(String(assemblyItem)); //* prellenar para mostrar
       }
     } catch (e) {
       showError(e.message);
@@ -117,10 +114,6 @@ export default function PackagingPage() {
       showWarning("Falta el Assembly Item en la ruta");
       return;
     }
-    if (!isEditing && !item) {
-      showWarning("Item es obligatorio al crear");
-      return;
-    }
 
     setLoading(true);
     try {
@@ -129,7 +122,8 @@ export default function PackagingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assemblyItem,
-          item: isEditing ? null : Number(item),
+          //! forzamos que el item del packaging sea el MISMO que el assembly
+          item: isEditing ? null : Number(assemblyItem),
           min: minv === "" ? null : Number(minv),
           nom: nom === "" ? null : Number(nom),
           max: maxv === "" ? null : Number(maxv),
@@ -138,12 +132,9 @@ export default function PackagingPage() {
         }),
       });
       const d = await r.json();
-      if (!r.ok || !d?.ok)
-        throw new Error(d?.error || "No se pudo guardar Packaging");
+      if (!r.ok || !d?.ok) throw new Error(d?.error || "No se pudo guardar Packaging");
 
-      showSuccess(
-        `${isEditing ? "Packaging actualizado" : "Packaging guardado"}.`
-      );
+      showSuccess(`${isEditing ? "Packaging actualizado" : "Packaging guardado"}.`);
       setTimeout(() => backToNew(), 900);
     } catch (e) {
       showError(e.message);
@@ -152,8 +143,8 @@ export default function PackagingPage() {
     }
   }
 
-  // Check required fields - only Item is required when creating
-  const isFormValid = !isEditing ? item.trim() : true;
+  //! el formulario siempre es válido (ya no exigimos capturar item)
+  const isFormValid = true;
 
   if (assemblyItem == null) {
     return (
@@ -162,9 +153,7 @@ export default function PackagingPage() {
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-red-500 to-rose-500 flex items-center justify-center">
             <AlertCircle className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-            Token Inválido
-          </h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">Token Inválido</h2>
           <p className="text-sm text-slate-700 dark:text-slate-300 font-medium mb-6">
             El token de Assembly es inválido o ha expirado.
           </p>
@@ -190,12 +179,8 @@ export default function PackagingPage() {
             </div>
             <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-gray-600 to-slate-600 animate-pulse opacity-50"></div>
           </div>
-          <p className="text-slate-700 dark:text-slate-300 text-sm font-semibold">
-            Cargando datos de Packaging…
-          </p>
-          <p className="text-slate-500 dark:text-slate-500 text-xs mt-1">
-            Preparando configuración de empaque
-          </p>
+          <p className="text-slate-700 dark:text-slate-300 text-sm font-semibold">Cargando datos de Packaging…</p>
+          <p className="text-slate-500 dark:text-slate-500 text-xs mt-1">Preparando configuración de empaque</p>
         </div>
       </div>
     );
@@ -203,13 +188,12 @@ export default function PackagingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 dark:from-slate-950 dark:via-gray-950 dark:to-slate-900">
-      {/* Decorative background elements */}
+      {/* Deco */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-gray-400/15 to-slate-600/15 blur-3xl"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-tr from-slate-400/15 to-gray-600/15 blur-3xl"></div>
       </div>
 
-      {/* Enhanced Topbar */}
       <GlobalTopbar
         title="Packaging"
         subtitle="Configuración de empaque y tapones"
@@ -235,29 +219,21 @@ export default function PackagingPage() {
         }
       />
 
-      {/* Enhanced Main Content */}
       <main className="relative max-w-6xl mx-auto px-4 py-8">
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
-          {/* Enhanced Form Header */}
           <div className="relative p-6 bg-gradient-to-r from-gray-600 via-slate-600 to-gray-700 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
-                  {isEditing ? (
-                    <Edit3 className="w-6 h-6" />
-                  ) : (
-                    <Plus className="w-6 h-6" />
-                  )}
+                  {isEditing ? <Edit3 className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
                 </div>
                 <div>
                   <h2 className="text-lg font-bold">
                     {isEditing ? "Editar Packaging" : "Configurar Packaging"}
                   </h2>
                   <p className="text-white/90 text-sm">
-                    {isEditing
-                      ? "Modifica los parámetros de empaque"
-                      : "Define los parámetros de empaque y tapones"}
+                    {isEditing ? "Modifica los parámetros de empaque" : "Define los parámetros de empaque y tapones"}
                   </p>
                 </div>
               </div>
@@ -265,7 +241,7 @@ export default function PackagingPage() {
                 <div className="flex items-center gap-1">
                   <Zap className="w-3 h-3" />
                   <span>
-                    El <b>Item</b> se agregará a <b>Adds[7]</b> al crear
+                    El <b>Item</b> de Packaging será el mismo que el <b>Assembly</b>
                   </span>
                 </div>
               </div>
@@ -278,66 +254,36 @@ export default function PackagingPage() {
               <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
                 <Info className="w-4 h-4 flex-shrink-0" />
                 <p className="text-sm font-medium">
-                  Solo el <strong>Item</strong> es obligatorio al crear. Todos
-                  los demás campos son opcionales.
+                  El <strong>Item</strong> es igual al del <strong>Assembly</strong> y no se puede editar.
                 </p>
               </div>
             </div>
 
-            {/* Enhanced Item Field */}
+            {/* Item (solo lectura, ligado a assemblyItem) */}
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-gray-500 to-slate-500"></div>
-                Item del Packaging
-                {!isEditing && <span className="text-red-500">*</span>}
-                {isEditing && (
-                  <span className="text-xs text-gray-600 dark:text-gray-400">
-                    (Solo lectura)
-                  </span>
-                )}
+                Item del Packaging (solo lectura)
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Hash
-                    className={`h-5 w-5 ${
-                      isEditing
-                        ? "text-gray-500"
-                        : "text-slate-500 dark:text-slate-400"
-                    }`}
-                  />
+                  <Hash className="h-5 w-5 text-gray-500" />
                 </div>
                 <input
                   value={item}
-                  onChange={(e) => setItem(e.target.value.replace(/\D/g, ""))}
-                  inputMode="numeric"
-                  placeholder="Ej. 12345678"
-                  required={!isEditing}
-                  readOnly={isEditing}
-                  className={`w-full pl-12 pr-4 py-4 rounded-xl border-2 text-slate-900 dark:text-slate-100
-                             transition-all duration-200
-                             ${
-                               isEditing
-                                 ? "bg-gray-50 dark:bg-gray-950/20 border-gray-200 dark:border-gray-800 cursor-not-allowed"
-                                 : "bg-white dark:bg-slate-950/50 border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-4 focus:ring-gray-500/20 focus:border-gray-500"
-                             }`}
+                  readOnly
+                  disabled
+                  className="w-full pl-12 pr-4 py-4 rounded-xl border-2 text-slate-900 dark:text-slate-100
+                             bg-gray-50 dark:bg-gray-950/20 border-gray-200 dark:border-gray-800 cursor-not-allowed"
                 />
-              </div>
-              <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                <Info className="w-3 h-3" />
-                <span>
-                  Se agregará a Adds[7]. Ejemplos:{" "}
-                  {examples.items.slice(0, 3).join(" • ") || "Cargando..."}
-                </span>
               </div>
             </div>
 
-            {/* Enhanced Measurements */}
+            {/* Medidas */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-500"></div>
-                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Medidas de Empaque (Opcionales)
-                </h3>
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Medidas de Empaque (Opcionales)</h3>
               </div>
               <div className="grid sm:grid-cols-3 gap-6">
                 <div className="space-y-2">
@@ -394,17 +340,14 @@ export default function PackagingPage() {
               </div>
             </div>
 
-            {/* Enhanced Cap Fields */}
+            {/* Caps */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-orange-500 to-amber-500"></div>
-                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Tapones y Protecciones (Opcionales)
-                </h3>
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Tapones y Protecciones (Opcionales)</h3>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-6">
-                {/* CapA Field */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <Shield className="w-4 h-4 text-orange-500" />
@@ -422,14 +365,10 @@ export default function PackagingPage() {
                   />
                   <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                     <Info className="w-3 h-3" />
-                    <span>
-                      Ejemplos:{" "}
-                      {examples.capA.slice(0, 3).join(" • ") || "Cargando..."}
-                    </span>
+                    <span>Ejemplos: {examples.capA.slice(0, 3).join(" • ") || "Cargando..."}</span>
                   </div>
                 </div>
 
-                {/* CapB Field */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <Tag className="w-4 h-4 text-amber-500" />
@@ -447,16 +386,12 @@ export default function PackagingPage() {
                   />
                   <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                     <Info className="w-3 h-3" />
-                    <span>
-                      Ejemplos:{" "}
-                      {examples.capB.slice(0, 3).join(" • ") || "Cargando..."}
-                    </span>
+                    <span>Ejemplos: {examples.capB.slice(0, 3).join(" • ") || "Cargando..."}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Enhanced Submit Button */}
             <div className="flex justify-end pt-6">
               <button
                 disabled={loading || !isFormValid}
@@ -491,45 +426,24 @@ export default function PackagingPage() {
           </form>
         </div>
 
-        {/* Enhanced Info Card */}
         <div className="mt-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-gray-50 to-slate-50 dark:from-gray-950/20 dark:to-slate-950/20 shadow-lg p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 rounded-lg bg-gray-500 text-white">
               <PackageIcon className="w-4 h-4" />
             </div>
-            <h4 className="font-bold text-slate-900 dark:text-slate-100">
-              Información del Packaging
-            </h4>
+            <h4 className="font-bold text-slate-900 dark:text-slate-100">Información del Packaging</h4>
           </div>
           <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
             <li className="flex items-start gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-gray-500 mt-2 flex-shrink-0"></div>
               <span>
-                El <strong>Item</strong> se agrega automáticamente como séptimo
-                elemento (<strong>Adds[7]</strong>) del Assembly al crear un
-                nuevo registro.
+                El <strong>Item</strong> de Packaging es el mismo <strong>Item</strong> del Assembly (proveniente de la URL).
               </span>
             </li>
             <li className="flex items-start gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-slate-500 mt-2 flex-shrink-0"></div>
               <span>
-                Solo el <strong>Item</strong> es obligatorio al crear. Todos los
-                demás campos (Min/Nom/Max, CapA, CapB) son opcionales.
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-2 flex-shrink-0"></div>
-              <span>
-                Los campos <strong>CapA</strong> y <strong>CapB</strong> se
-                convierten automáticamente a mayúsculas y son para especificar
-                tapones o protecciones.
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 flex-shrink-0"></div>
-              <span>
-                En modo edición, el campo <strong>Item</strong> es de solo
-                lectura para mantener la integridad de los datos.
+                En modo edición, el campo <strong>Item</strong> permanece en solo lectura.
               </span>
             </li>
           </ul>

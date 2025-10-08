@@ -2,14 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Package2, Save, Loader2, Scissors, Wrench, CircleDot, 
-  Package as PackageIcon, Sparkles, CheckCircle, BarChart2, LogOut, Info,
+import {
+  Package2,
+  Save,
+  Loader2,
+  Scissors,
+  Wrench,
+  CircleDot,
+  Package as PackageIcon,
+  Sparkles,
+  CheckCircle,
+  BarChart2,
+  LogOut,
+  Info,
 } from "lucide-react";
 import { useAlert } from "@/components/AlertSystem";
 import { encodeItemId, decodeItemId } from "@/lib/idCodec";
 import GlobalTopbar from "@/components/GlobalTopbar";
 
-// ---- helpers cookies (cliente) ----
+//? ---- helpers cookies (cliente) ----
 function getCookie(name) {
   if (typeof document === "undefined") return null;
   const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -20,8 +31,8 @@ function getUserRoleFromCookie() {
   return raw ? String(raw).trim() : null;
 }
 
-// Borrador (sólo para "nuevo", evitamos interferir cuando editamos)
-const DRAFT_KEY = "assembly:new:draft:v1";
+//* Borrador (sólo para "nuevo", evitamos interferir cuando editamos)
+const DRAFT_KEY = "assembly:new:draft:v2"; //* bump key por cambio de estructura
 const loadDraft = () => {
   if (typeof window === "undefined") return null;
   try {
@@ -45,11 +56,7 @@ const clearDraft = () => {
 
 const MODULES = [
   { key: "Hose Cut", icon: Scissors, color: "from-amber-500 to-orange-500" },
-  {
-    key: "Sleeve/Guard cut",
-    icon: CircleDot,
-    color: "from-blue-500 to-indigo-500",
-  },
+  { key: "Sleeve/Guard cut", icon: CircleDot, color: "from-blue-500 to-indigo-500" },
   { key: "Crimp A", icon: Wrench, color: "from-green-500 to-emerald-500" },
   { key: "CollarA", icon: CircleDot, color: "from-purple-500 to-violet-500" },
   { key: "Crimp B", icon: Wrench, color: "from-pink-500 to-rose-500" },
@@ -62,7 +69,7 @@ export default function AssemblyNewPage() {
   const searchParams = useSearchParams();
   const { showSuccess, showError, showWarning } = useAlert();
 
-  // mount + roles
+  //* mount + roles
   const [mounted, setMounted] = useState(false);
   const [userRole, setUserRole] = useState(null);
   useEffect(() => {
@@ -72,11 +79,11 @@ export default function AssemblyNewPage() {
   const isAdmin = mounted && userRole === "1";
   const isCalidad = mounted && userRole === "2";
 
-  // estado base
-  const [nextItem, setNextItem] = useState(null);
-  const [createdItem, setCreatedItem] = useState(null); // si viene de dashboard = item a editar
-  const [isEditing, setIsEditing] = useState(false); // bandera de modo edición
+  //* estado base
+  const [createdItem, setCreatedItem] = useState(null); //* si viene de dashboard = item a editar
+  const [isEditing, setIsEditing] = useState(false); //* bandera de modo edición
 
+  const [itemValue, setItemValue] = useState(""); //* NUEVO: Item manual
   const [descripcion, setDescripcion] = useState("");
   const [customer, setCustomer] = useState("");
   const [nci, setNci] = useState("");
@@ -93,14 +100,15 @@ export default function AssemblyNewPage() {
 
   const [moduleStatus, setModuleStatus] = useState({});
 
-  // ----- prevenir bucles: solo prefill UNA VEZ por item -----
+  //* ----- prevenir bucles: solo prefill UNA VEZ por item -----
   const loadedIdRef = useRef(null);
 
-  // ----- hidratar borrador SOLO cuando no estamos editando -----
+  //* ----- hidratar borrador SOLO cuando no estamos editando -----
   useEffect(() => {
     if (isEditing) return;
     const draft = loadDraft();
     if (draft) {
+      setItemValue(draft.itemValue ?? "");
       setDescripcion(draft.descripcion ?? "");
       setCustomer(draft.customer ?? "");
       setNci(draft.nci ?? "");
@@ -108,37 +116,36 @@ export default function AssemblyNewPage() {
     }
   }, [isEditing]);
 
-  // ----- autosave borrador SOLO cuando no editamos -----
+  //* ----- autosave borrador SOLO cuando no editamos -----
   useEffect(() => {
     if (isEditing) return;
     const t = setTimeout(() => {
-      saveDraft({ descripcion, customer, nci, customerRev });
+      saveDraft({ itemValue, descripcion, customer, nci, customerRev });
     }, 250);
     return () => clearTimeout(t);
-  }, [isEditing, descripcion, customer, nci, customerRev]);
+  }, [isEditing, itemValue, descripcion, customer, nci, customerRev]);
 
-  // ----- interpretar query params de forma ESTABLE -----
-  const editParam = searchParams.get("edit"); // "1" o null
-  const itemParam = searchParams.get("item"); // token o null
-  const lastParam = searchParams.get("last"); // token regreso subform o null
+  //* ----- interpretar query params de forma ESTABLE -----
+  const editParam = searchParams.get("edit"); //* "1" o null
+  const itemParam = searchParams.get("item"); //* token o null
+  const lastParam = searchParams.get("last"); //* token regreso subform o null
 
   useEffect(() => {
-    // MODO EDICIÓN (desde dashboard): /assembly/new?edit=1&item=<token>
+    //* MODO EDICIÓN (desde dashboard): /assembly/new?edit=1&item=<token>
     if (editParam === "1" && itemParam) {
       const id = decodeItemId(itemParam);
       if (id != null && !Number.isNaN(id)) {
-        if (loadedIdRef.current === id) return; // ya cargado -> evita bucle
+        if (loadedIdRef.current === id) return; //* ya cargado -> evita bucle
         loadedIdRef.current = id;
 
         setIsEditing(true);
         setCreatedItem(id);
+        setItemValue(String(id)); //* bloquear en UI al editar
 
         (async () => {
           setLoadingAssembly(true);
           try {
-            const r = await fetch(`/api/assembly?item=${id}`, {
-              cache: "no-store",
-            });
+            const r = await fetch(`/api/assembly?item=${id}`, { cache: "no-store" });
             const d = await r.json();
             if (!r.ok || !d?.ok || !d.assembly) {
               throw new Error(d?.error || "Assembly no encontrado");
@@ -148,49 +155,36 @@ export default function AssemblyNewPage() {
             setCustomer(String(a.Customer ?? ""));
             setNci(String(a.NCI ?? ""));
             setCustomerRev(String(a.CustomerRev ?? ""));
-            // Si quieres toast aquí, descomenta:
-            // showSuccess(`Editando el assembly #${id}`);
           } catch (e) {
-            showError(
-              e.message || "No se pudo cargar el assembly para edición"
-            );
+            showError(e.message || "No se pudo cargar el assembly para edición");
             setIsEditing(false);
           } finally {
             setLoadingAssembly(false);
           }
         })();
 
-        return; // prioridad a edición
+        return; //* prioridad a edición
       }
     }
 
-    // REGRESO DESDE SUBFORM: /assembly/new?last=<token>
+    //* REGRESO DESDE SUBFORM: /assembly/new?last=<token>
     if (lastParam) {
       const id = decodeItemId(lastParam);
       if (id != null && !Number.isNaN(id)) {
         setCreatedItem(id);
         setIsEditing(false);
+        setItemValue(String(id));
       }
     }
   }, [editParam, itemParam, lastParam]);
 
-  // meta (nextItem + ejemplos)
+  //* meta (solo ejemplos)
   async function loadMeta() {
     setLoadingMeta(true);
     try {
-      const [r1, r2] = await Promise.all([
-        fetch("/api/assembly", { cache: "no-store" }),
-        fetch("/api/assembly/examples", { cache: "no-store" }),
-      ]);
-      const d1 = await r1.json();
+      const r2 = await fetch("/api/assembly/examples", { cache: "no-store" });
       const d2 = await r2.json();
-
-      if (!r1.ok || !d1?.ok)
-        throw new Error(d1?.error || "Error al calcular Item");
-      if (!r2.ok || !d2?.ok)
-        throw new Error(d2?.error || "Error al cargar ejemplos");
-
-      setNextItem(d1.nextItem);
+      if (!r2.ok || !d2?.ok) throw new Error(d2?.error || "Error al cargar ejemplos");
       setExamples({
         customers: d2.customers || [],
         ncis: d2.ncis || [],
@@ -206,7 +200,7 @@ export default function AssemblyNewPage() {
     loadMeta();
   }, []);
 
-  // estado de módulos (si hay createdItem)
+  //* estado de módulos (si hay createdItem)
   async function loadModuleStatus() {
     if (!createdItem) {
       setModuleStatus({});
@@ -215,28 +209,14 @@ export default function AssemblyNewPage() {
     try {
       const checks = await Promise.all([
         fetch(`/api/hose?assemblyItem=${createdItem}`, { cache: "no-store" }),
-        fetch(`/api/sleeve-guard?assemblyItem=${createdItem}`, {
-          cache: "no-store",
-        }),
-        fetch(`/api/crimp-a?assemblyItem=${createdItem}`, {
-          cache: "no-store",
-        }),
-        fetch(`/api/collar-a?assemblyItem=${createdItem}`, {
-          cache: "no-store",
-        }),
-        fetch(`/api/crimp-b?assemblyItem=${createdItem}`, {
-          cache: "no-store",
-        }),
-        fetch(`/api/collar-b?assemblyItem=${createdItem}`, {
-          cache: "no-store",
-        }),
-        fetch(`/api/packaging?assemblyItem=${createdItem}`, {
-          cache: "no-store",
-        }),
+        fetch(`/api/sleeve-guard?assemblyItem=${createdItem}`, { cache: "no-store" }),
+        fetch(`/api/crimp-a?assemblyItem=${createdItem}`, { cache: "no-store" }),
+        fetch(`/api/collar-a?assemblyItem=${createdItem}`, { cache: "no-store" }),
+        fetch(`/api/crimp-b?assemblyItem=${createdItem}`, { cache: "no-store" }),
+        fetch(`/api/collar-b?assemblyItem=${createdItem}`, { cache: "no-store" }),
+        fetch(`/api/packaging?assemblyItem=${createdItem}`, { cache: "no-store" }),
       ]);
-      const results = await Promise.all(
-        checks.map((r) => r.json().catch(() => ({ ok: false })))
-      );
+      const results = await Promise.all(checks.map((r) => r.json().catch(() => ({ ok: false }))));
 
       setModuleStatus({
         "Hose Cut": results[0]?.ok && results[0]?.hose,
@@ -255,52 +235,60 @@ export default function AssemblyNewPage() {
     loadModuleStatus();
   }, [createdItem]);
 
+  //* Helpers validación de Item
+  const parseItem = (val) => {
+    const n = Number(val);
+    if (!Number.isInteger(n) || n <= 0) return null;
+    return n;
+  };
+
   async function onSubmit(e) {
     e.preventDefault();
     setLoading(true);
     try {
       const payload = {
+        item: parseItem(itemValue), //* requerido al crear
         descripcion: descripcion.trim(),
         customer: customer.trim(),
         nci: nci.trim().toUpperCase(),
         customerRev: customerRev.trim(),
       };
 
-      let res, data;
-      if (isEditing && createdItem) {
-        // UPDATE
-        res = await fetch(`/api/assembly?item=${createdItem}`, {
+      if (isEditing) {
+        if (!createdItem) throw new Error("Falta item en edición");
+        //* UPDATE (el item viene en query, no se cambia)
+        const res = await fetch(`/api/assembly?item=${createdItem}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            descripcion: payload.descripcion,
+            customer: payload.customer,
+            nci: payload.nci,
+            customerRev: payload.customerRev,
+          }),
         });
-        data = await res.json();
-        if (!res.ok || !data?.ok)
-          throw new Error(data?.error || "No se pudo actualizar");
+        const data = await res.json();
+        if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo actualizar");
         showSuccess(`Assembly #${createdItem} actualizado`);
-        // se mantiene createdItem
       } else {
-        // CREATE
-        res = await fetch("/api/assembly", {
+        //* CREATE requiere item válido
+        if (!payload.item) throw new Error("Debes capturar un Item entero positivo");
+        const res = await fetch("/api/assembly", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        data = await res.json();
-        if (!res.ok || !data?.ok)
-          throw new Error(data?.error || "No se pudo registrar");
+        const data = await res.json();
+        if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo registrar");
         setCreatedItem(data.item.Item);
+        setItemValue(String(data.item.Item)); //* reflejar el que quedó
         showSuccess(`Producto registrado con Item ${data.item.Item}`);
       }
 
-      // refrescos
-      loadMeta();
+      //* refrescos
       loadModuleStatus();
     } catch (e) {
-      showError(
-        e.message,
-        isEditing ? "Error de Actualización" : "Error de Registro"
-      );
+      showError(e.message, isEditing ? "Error de Actualización" : "Error de Registro");
     } finally {
       setLoading(false);
     }
@@ -308,6 +296,7 @@ export default function AssemblyNewPage() {
 
   const handleNewRecord = () => {
     clearDraft();
+    setItemValue("");
     setDescripcion("");
     setCustomer("");
     setNci("");
@@ -316,15 +305,12 @@ export default function AssemblyNewPage() {
     setIsEditing(false);
     setModuleStatus({});
     loadedIdRef.current = null;
-    loadMeta();
     router.replace("/assembly/new");
   };
 
   const handleModuleClick = (m) => {
     if (!createdItem) {
-      showWarning(
-        "Guarda primero el producto para continuar con los formularios opcionales"
-      );
+      showWarning("Guarda primero el producto para continuar con los formularios opcionales");
       return;
     }
     const token = encodeItemId(createdItem);
@@ -378,11 +364,7 @@ export default function AssemblyNewPage() {
 
       <GlobalTopbar
         title={isEditing ? `Editar Assembly #${createdItem}` : "Nuevo Assembly"}
-        subtitle={
-          isEditing
-            ? "Modifica los datos del assembly"
-            : "Sistema de gestión de productos"
-        }
+        subtitle={isEditing ? "Modifica los datos del assembly" : "Sistema de gestión de productos"}
         icon={Package2}
         gradient="from-indigo-600 via-violet-600 to-purple-600"
         showBack={false}
@@ -400,8 +382,6 @@ export default function AssemblyNewPage() {
                 </span>
               </button>
             )}
-
-            {/* NUEVO: sólo admins (rol 1) */}
             {isAdmin && (
               <button
                 onClick={() => router.push("/admin/usuarios/")}
@@ -410,13 +390,10 @@ export default function AssemblyNewPage() {
               >
                 <span className="inline-flex items-center gap-2 text-sm font-medium">
                   <Save className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  <span className="hidden xs:inline sm:inline">
-                    Agregar usuario
-                  </span>
+                  <span className="hidden xs:inline sm:inline">Agregar usuario</span>
                 </span>
               </button>
             )}
-
             <button
               onClick={async () => {
                 await fetch("/api/auth/logout", { method: "POST" });
@@ -427,20 +404,9 @@ export default function AssemblyNewPage() {
             >
               <span className="inline-flex items-center gap-2 text-sm font-medium">
                 <LogOut className="w-4 h-4" />
-                <span className="hidden xs:inline sm:inline">
-                  Cerrar sesión
-                </span>
+                <span className="hidden xs:inline sm:inline">Cerrar sesión</span>
               </span>
             </button>
-
-            {createdItem && (
-              <div className="flex items-center gap-2 text-xs bg-emerald-500/90 text-white px-3 py-2 rounded-lg border border-emerald-400 shadow-lg">
-                <CheckCircle className="w-4 h-4" />
-                <span>
-                  Item activo: <b>#{createdItem}</b>
-                </span>
-              </div>
-            )}
           </div>
         }
         newButton={{
@@ -462,24 +428,49 @@ export default function AssemblyNewPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold">
-                    {isEditing
-                      ? "Editar datos del producto"
-                      : "Información del producto"}
+                    {isEditing ? "Editar datos del producto" : "Información del producto"}
                   </h2>
                   <p className="text-white/90 text-sm">
-                    {isEditing
-                      ? "Actualiza los campos necesarios."
-                      : "Complete los datos. El Item se asigna automáticamente."}
+                    {isEditing ? "Actualiza los campos necesarios." : "Captura el Item manualmente y completa los datos."}
                   </p>
                 </div>
               </div>
             </div>
 
-            <form
-              id="assembly-form"
-              onSubmit={onSubmit}
-              className="p-8 space-y-8"
-            >
+            <form id="assembly-form" onSubmit={onSubmit} className="p-8 space-y-8">
+              {/* ITEM (manual) */}
+              <div className="grid gap-8 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    <div className="w-2 h-2 rounded-full bg-gradient-to-r from-slate-600 to-slate-800"></div>
+                    Item (número)
+                  </label>
+                  <input
+                    value={itemValue}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/[^\d]/g, ""); //* solo dígitos
+                      setItemValue(v);
+                    }}
+                    inputMode="numeric"
+                    pattern="^[1-9]\d*$"
+                    title="Ingresa un entero positivo"
+                    placeholder="Ej. 1001"
+                    required={!isEditing}
+                    disabled={isEditing}
+                    className="w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-slate-950/40
+                              text-slate-900 dark:text-slate-100 placeholder-slate-400
+                              border-slate-200 dark:border-slate-700
+                              focus:outline-none focus:ring-4 focus:ring-slate-500/20 focus:border-slate-500
+                              transition-all duration-200 disabled:opacity-60"
+                  />
+                  {!isEditing && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Debe ser único. El sistema validará duplicados.
+                    </p>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                   <div className="w-2 h-2 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500"></div>
@@ -517,11 +508,7 @@ export default function AssemblyNewPage() {
                   />
                   <div className="flex items-center gap-1 mt-2 text-xs text-slate-500 dark:text-slate-400">
                     <Info className="w-3 h-3" />
-                    <span>
-                      Ejemplos:{" "}
-                      {examples.customers.slice(0, 3).join(" • ") ||
-                        "Cargando..."}
-                    </span>
+                    <span>Ejemplos: {examples.customers.slice(0, 3).join(" • ") || "Cargando..."}</span>
                   </div>
                 </div>
 
@@ -543,10 +530,7 @@ export default function AssemblyNewPage() {
                   />
                   <div className="flex items-center gap-1 mt-2 text-xs text-slate-500 dark:text-slate-400">
                     <Info className="w-3 h-3" />
-                    <span>
-                      Ejemplos:{" "}
-                      {examples.ncis.slice(0, 3).join(" • ") || "Cargando..."}
-                    </span>
+                    <span>Ejemplos: {examples.ncis.slice(0, 3).join(" • ") || "Cargando..."}</span>
                   </div>
                 </div>
               </div>
@@ -569,11 +553,7 @@ export default function AssemblyNewPage() {
                 />
                 <div className="flex items-center gap-1 mt-2 text-xs text-slate-500 dark:text-slate-400">
                   <Info className="w-3 h-3" />
-                  <span>
-                    Ejemplos:{" "}
-                    {examples.customerRevs.slice(0, 3).join(" • ") ||
-                      "Cargando..."}
-                  </span>
+                  <span>Ejemplos: {examples.customerRevs.slice(0, 3).join(" • ") || "Cargando..."}</span>
                 </div>
               </div>
 
@@ -614,30 +594,20 @@ export default function AssemblyNewPage() {
               <div className="p-2 rounded-lg bg-blue-500 text-white">
                 <Info className="w-4 h-4" />
               </div>
-              <h4 className="font-bold text-slate-900 dark:text-slate-100">
-                Información del Sistema
-              </h4>
+              <h4 className="font-bold text-slate-900 dark:text-slate-100">Información del Sistema</h4>
             </div>
             <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
               <li className="flex items-start gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 flex-shrink-0"></div>
-                <span>
-                  El Item se asigna automáticamente siguiendo la secuencia del
-                  sistema.
-                </span>
+                <span>Ahora el <b>Item</b> se captura manualmente y debe ser único.</span>
               </li>
               <li className="flex items-start gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-2 flex-shrink-0"></div>
-                <span>
-                  Los códigos NCI se convierten automáticamente a mayúsculas.
-                </span>
+                <span>Los códigos NCI se convierten automáticamente a mayúsculas.</span>
               </li>
               <li className="flex items-start gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-2 flex-shrink-0"></div>
-                <span>
-                  Completa los módulos adicionales después de guardar el
-                  assembly principal.
-                </span>
+                <span>Completa los módulos adicionales después de guardar el assembly principal.</span>
               </li>
             </ul>
           </div>
@@ -652,13 +622,9 @@ export default function AssemblyNewPage() {
                   <PackageIcon className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                    Formularios Adicionales
-                  </h3>
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100">Formularios Adicionales</h3>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
-                    {createdItem
-                      ? "Selecciona para configurar o editar"
-                      : "Disponibles después de guardar"}
+                    {createdItem ? "Selecciona para configurar o editar" : "Disponibles después de guardar"}
                   </p>
                 </div>
               </div>
@@ -691,16 +657,12 @@ export default function AssemblyNewPage() {
                     style={{ animationDelay: `${idx * 50}ms` }}
                   >
                     <div className="flex items-center gap-3">
-                      <div
-                        className={`w-10 h-10 rounded-xl bg-gradient-to-r ${m.color} text-white grid place-items-center`}
-                      >
+                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${m.color} text-white grid place-items-center`}>
                         <Icon className="w-5 h-5" />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-slate-800 dark:text-slate-100 text-sm">
-                            {m.key}
-                          </span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-100 text-sm">{m.key}</span>
                           {hasData && !disabled && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-medium">
                               Completado
@@ -708,11 +670,7 @@ export default function AssemblyNewPage() {
                           )}
                         </div>
                         <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                          {disabled
-                            ? "Guarda primero el assembly"
-                            : hasData
-                            ? "Configurado — Click para editar"
-                            : "Configurar módulo"}
+                          {disabled ? "Guarda primero el assembly" : hasData ? "Configurado — Click para editar" : "Configurar módulo"}
                         </div>
                       </div>
                       <div

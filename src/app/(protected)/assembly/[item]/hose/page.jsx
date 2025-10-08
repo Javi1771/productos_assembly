@@ -428,7 +428,7 @@ export default function HoseCutPage() {
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-purple-500 to-violet-500"></div>
-                Clea (Información Adicional)
+                Cleaning (Información Adicional)
               </label>
               <textarea
                 value={clea}
