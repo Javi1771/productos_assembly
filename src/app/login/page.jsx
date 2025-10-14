@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Mail,
@@ -18,16 +18,48 @@ import {
 } from "lucide-react";
 import { useAlert } from "@/components/AlertSystem";
 
-export default function LoginPage() {
+// ---- Wrapper con Suspense (obligatorio para useSearchParams) ----
+export default function LoginPageWrapper() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen grid place-items-center">
+          <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Cargando…</span>
+          </div>
+        </div>
+      }
+    >
+      <LoginPage />
+    </Suspense>
+  );
+}
+
+function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showSuccess, showError } = useAlert();
+
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  //* Al entrar a /login, borra la cookie de sesión (fallback cliente)
+  // Partículas deterministas (evita Math.random() en el render SSR)
+  const particles = useMemo(() => {
+    const size = 20;
+    // Secuencia determinista simple basada en el índice
+    return Array.from({ length: size }, (_, i) => {
+      const left = (i * 37) % 100;     // 37 y 53 son primos relativos a 100
+      const top = (i * 53) % 100;
+      const delay = (i % 4) * 0.5;     // 0, 0.5, 1.0, 1.5…
+      const duration = 2 + (i % 3);    // 2, 3 o 4 s
+      return { left, top, delay, duration };
+    });
+  }, []);
+
+  // Al entrar a /login, borra cookie de sesión (fallback cliente)
   useEffect(() => {
     (async () => {
       try {
@@ -36,7 +68,7 @@ export default function LoginPage() {
           credentials: "same-origin",
         });
       } catch {
-        //! ignorar; el middleware también la elimina
+        // ignorar; el middleware también la elimina
       }
     })();
   }, []);
@@ -56,7 +88,7 @@ export default function LoginPage() {
 
       showSuccess("¡Bienvenido! Sesión iniciada correctamente");
 
-      //* Soporta redirección a ?next=/ruta/protegida
+      // Soporta redirección a ?next=/ruta/protegida
       const next = searchParams.get("next");
       const dest = next && next.startsWith("/") ? next : "/assembly/new";
 
@@ -77,24 +109,24 @@ export default function LoginPage() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-gradient-to-r from-purple-400/10 to-pink-600/10 blur-2xl"></div>
       </div>
 
-      {/* Floating particles effect */}
+      {/* Floating particles effect (determinista) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
+        {particles.map((p, i) => (
           <div
             key={i}
             className="absolute w-1 h-1 bg-indigo-400/30 rounded-full animate-pulse"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${2 + Math.random() * 2}s`,
+              left: `${p.left}%`,
+              top: `${p.top}%`,
+              animationDelay: `${p.delay}s`,
+              animationDuration: `${p.duration}s`,
             }}
           />
         ))}
       </div>
 
       <div className="w-full max-w-md relative z-10">
-        {/* Enhanced Header */}
+        {/* Header */}
         <div className="text-center mb-10">
           <div className="relative mx-auto w-20 h-20 mb-6">
             <div
@@ -123,7 +155,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Enhanced Form Card */}
+        {/* Form Card */}
         <div className="relative">
           <div className="absolute -inset-4 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-600 rounded-3xl blur-xl opacity-20 animate-pulse"></div>
 

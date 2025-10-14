@@ -32,7 +32,7 @@ function getUserRoleFromCookie() {
 }
 
 //* Borrador (sólo para "nuevo", evitamos interferir cuando editamos)
-const DRAFT_KEY = "assembly:new:draft:v2"; //* bump key por cambio de estructura
+const DRAFT_KEY = "assembly:new:draft:v2";
 const loadDraft = () => {
   if (typeof window === "undefined") return null;
   try {
@@ -72,18 +72,32 @@ export default function AssemblyNewPage() {
   //* mount + roles
   const [mounted, setMounted] = useState(false);
   const [userRole, setUserRole] = useState(null);
+
+  //! Evitar parpadeos mientras redirigimos
+  const [redirecting, setRedirecting] = useState(false);
+
   useEffect(() => {
     setMounted(true);
     setUserRole(getUserRoleFromCookie());
   }, []);
+
   const isAdmin = mounted && userRole === "1";
   const isCalidad = mounted && userRole === "2";
 
-  //* estado base
-  const [createdItem, setCreatedItem] = useState(null); //* si viene de dashboard = item a editar
-  const [isEditing, setIsEditing] = useState(false); //* bandera de modo edición
+  //* Si es Calidad (rol 2), enviamos directo al dashboard y bloqueamos esta vista
+  useEffect(() => {
+    if (!mounted) return;
+    if (userRole === "2") {
+      setRedirecting(true);
+      router.replace("/assembly/dashboard");
+    }
+  }, [mounted, userRole, router]);
 
-  const [itemValue, setItemValue] = useState(""); //* NUEVO: Item manual
+  //* estado base
+  const [createdItem, setCreatedItem] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const [itemValue, setItemValue] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [customer, setCustomer] = useState("");
   const [nci, setNci] = useState("");
@@ -103,44 +117,61 @@ export default function AssemblyNewPage() {
   //* ----- prevenir bucles: solo prefill UNA VEZ por item -----
   const loadedIdRef = useRef(null);
 
+  //* helper para limpiar todo el formulario/estado
+  const clearFormState = () => {
+    setItemValue("");
+    setDescripcion("");
+    setCustomer("");
+    setNci("");
+    setCustomerRev("");
+    setCreatedItem(null);
+    setIsEditing(false);
+    setModuleStatus({});
+    loadedIdRef.current = null;
+  };
+
   //* ----- hidratar borrador SOLO cuando no estamos editando -----
   useEffect(() => {
     if (isEditing) return;
     const draft = loadDraft();
     if (draft) {
+      //! si el borrador es de otro rol, lo ignoramos y lo borramos
+      if (draft.ownerRole && draft.ownerRole !== userRole) {
+        clearDraft();
+        return;
+      }
       setItemValue(draft.itemValue ?? "");
       setDescripcion(draft.descripcion ?? "");
       setCustomer(draft.customer ?? "");
       setNci(draft.nci ?? "");
       setCustomerRev(draft.customerRev ?? "");
     }
-  }, [isEditing]);
+  }, [isEditing, userRole]);
 
   //* ----- autosave borrador SOLO cuando no editamos -----
   useEffect(() => {
     if (isEditing) return;
     const t = setTimeout(() => {
-      saveDraft({ itemValue, descripcion, customer, nci, customerRev });
+      saveDraft({ ownerRole: userRole, itemValue, descripcion, customer, nci, customerRev });
     }, 250);
     return () => clearTimeout(t);
-  }, [isEditing, itemValue, descripcion, customer, nci, customerRev]);
+  }, [isEditing, userRole, itemValue, descripcion, customer, nci, customerRev]);
 
   //* ----- interpretar query params de forma ESTABLE -----
-  const editParam = searchParams.get("edit"); //* "1" o null
-  const itemParam = searchParams.get("item"); //* token o null
-  const lastParam = searchParams.get("last"); //* token regreso subform o null
+  const editParam = searchParams.get("edit");
+  const itemParam = searchParams.get("item");
+  const lastParam = searchParams.get("last");
 
   useEffect(() => {
-    //* MODO EDICIÓN (desde dashboard): /assembly/new?edit=1&item=<token>
     if (editParam === "1" && itemParam) {
       const id = decodeItemId(itemParam);
       if (id != null && !Number.isNaN(id)) {
-        if (loadedIdRef.current === id) return; //* ya cargado -> evita bucle
+        if (loadedIdRef.current === id) return;
         loadedIdRef.current = id;
 
         setIsEditing(true);
         setCreatedItem(id);
-        setItemValue(String(id)); //* bloquear en UI al editar
+        setItemValue(String(id));
 
         (async () => {
           setLoadingAssembly(true);
@@ -163,11 +194,10 @@ export default function AssemblyNewPage() {
           }
         })();
 
-        return; //* prioridad a edición
+        return;
       }
     }
 
-    //* REGRESO DESDE SUBFORM: /assembly/new?last=<token>
     if (lastParam) {
       const id = decodeItemId(lastParam);
       if (id != null && !Number.isNaN(id)) {
@@ -176,7 +206,7 @@ export default function AssemblyNewPage() {
         setItemValue(String(id));
       }
     }
-  }, [editParam, itemParam, lastParam]);
+  }, [editParam, itemParam, lastParam, showError]);
 
   //* meta (solo ejemplos)
   async function loadMeta() {
@@ -235,7 +265,6 @@ export default function AssemblyNewPage() {
     loadModuleStatus();
   }, [createdItem]);
 
-  //* Helpers validación de Item
   const parseItem = (val) => {
     const n = Number(val);
     if (!Number.isInteger(n) || n <= 0) return null;
@@ -247,7 +276,7 @@ export default function AssemblyNewPage() {
     setLoading(true);
     try {
       const payload = {
-        item: parseItem(itemValue), //* requerido al crear
+        item: parseItem(itemValue),
         descripcion: descripcion.trim(),
         customer: customer.trim(),
         nci: nci.trim().toUpperCase(),
@@ -256,7 +285,6 @@ export default function AssemblyNewPage() {
 
       if (isEditing) {
         if (!createdItem) throw new Error("Falta item en edición");
-        //* UPDATE (el item viene en query, no se cambia)
         const res = await fetch(`/api/assembly?item=${createdItem}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -271,7 +299,6 @@ export default function AssemblyNewPage() {
         if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo actualizar");
         showSuccess(`Assembly #${createdItem} actualizado`);
       } else {
-        //* CREATE requiere item válido
         if (!payload.item) throw new Error("Debes capturar un Item entero positivo");
         const res = await fetch("/api/assembly", {
           method: "POST",
@@ -281,11 +308,10 @@ export default function AssemblyNewPage() {
         const data = await res.json();
         if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo registrar");
         setCreatedItem(data.item.Item);
-        setItemValue(String(data.item.Item)); //* reflejar el que quedó
+        setItemValue(String(data.item.Item));
         showSuccess(`Producto registrado con Item ${data.item.Item}`);
       }
 
-      //* refrescos
       loadModuleStatus();
     } catch (e) {
       showError(e.message, isEditing ? "Error de Actualización" : "Error de Registro");
@@ -296,15 +322,7 @@ export default function AssemblyNewPage() {
 
   const handleNewRecord = () => {
     clearDraft();
-    setItemValue("");
-    setDescripcion("");
-    setCustomer("");
-    setNci("");
-    setCustomerRev("");
-    setCreatedItem(null);
-    setIsEditing(false);
-    setModuleStatus({});
-    loadedIdRef.current = null;
+    clearFormState();
     router.replace("/assembly/new");
   };
 
@@ -336,6 +354,28 @@ export default function AssemblyNewPage() {
     };
     router.push(routeFor(m.key));
   };
+
+  // Limpiar si vienes de /login (post-login)
+  useEffect(() => {
+    if (!mounted) return;
+    const cameFromLogin =
+      typeof document !== "undefined" &&
+      typeof document.referrer === "string" &&
+      /\/login(?:\b|\/|$)/.test(document.referrer);
+    if (cameFromLogin) {
+      clearDraft();
+      clearFormState();
+    }
+  }, [mounted]);
+
+  // Bloquear render si está redirigiendo por rol 2
+  if (redirecting) {
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <p className="text-slate-600">Redirigiendo al Dashboard…</p>
+      </div>
+    );
+  }
 
   if (loadingMeta || (isEditing && loadingAssembly)) {
     return (
@@ -370,7 +410,8 @@ export default function AssemblyNewPage() {
         showBack={false}
         rightExtra={
           <div className="flex items-center gap-3">
-            {isCalidad && (
+            {/* Dashboard para Calidad O Admin */}
+            {(isCalidad || isAdmin) && (
               <button
                 onClick={() => router.push("/assembly/dashboard")}
                 className="group px-3 sm:px-4 py-2 rounded-lg bg-white/15 hover:bg-white/25 border border-white/20 backdrop-blur-sm transition-all duration-200 hover:scale-105"
@@ -382,6 +423,8 @@ export default function AssemblyNewPage() {
                 </span>
               </button>
             )}
+
+            {/* Admin: botón de usuarios */}
             {isAdmin && (
               <button
                 onClick={() => router.push("/admin/usuarios/")}
@@ -394,6 +437,7 @@ export default function AssemblyNewPage() {
                 </span>
               </button>
             )}
+
             <button
               onClick={async () => {
                 await fetch("/api/auth/logout", { method: "POST" });

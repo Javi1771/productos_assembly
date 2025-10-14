@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Package2, BarChart2, Users, Layers, Search, Filter, TrendingUp, Activity, Plus, Edit, CheckCircle2, AlertCircle, Loader2, RefreshCw, X, Hash, Building2, Target, PieChart, BarChart3, } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Package2, BarChart2, Users, Layers, Search, Filter, TrendingUp, Activity, Plus, AlertCircle, Loader2, RefreshCw, X, Hash, Building2, Target, BarChart3, Trash2, AlertTriangle, LogOut, } from "lucide-react";
 import GlobalTopbar from "@/components/GlobalTopbar";
 import { useAlert } from "@/components/AlertSystem";
 import InteractiveKPICard from "@/components/InteractiveKPICard";
@@ -46,14 +47,121 @@ const MODULES_ORDER = [
   },
 ];
 
-function encodeItemId(itemId) {
-  return btoa(itemId.toString()).replace(
-    /[+/=]/g,
-    (match) => ({ "+": "-", "/": "_", "=": "" }[match])
+function getCookie(name) {
+  if (typeof document === "undefined") return null;
+  const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  return m ? decodeURIComponent(m[2]) : null;
+}
+
+function getUserRoleFromCookie() {
+  const raw = getCookie("u_rol");
+  return raw ? String(raw).trim() : null;
+}
+
+//* Modal de confirmación personalizado
+function DeleteConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  itemNumber,
+  isDeleting,
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="relative max-w-md w-full rounded-2xl border border-red-200 dark:border-red-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden">
+        {/* Header con gradiente */}
+        <div className="bg-gradient-to-r from-red-500 to-rose-600 p-6 text-white">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-full bg-white/20 backdrop-blur-sm">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">Confirmar Eliminación</h3>
+              <p className="text-sm text-white/90">
+                Esta acción no se puede deshacer
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Contenido */}
+        <div className="p-6">
+          <div className="mb-6">
+            <p className="text-slate-700 dark:text-slate-300 mb-4">
+              ¿Estás seguro de que deseas eliminar el{" "}
+              <span className="font-bold text-slate-900 dark:text-slate-100">
+                Assembly #{itemNumber}
+              </span>
+              ?
+            </p>
+
+            <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
+              <p className="text-sm font-semibold text-red-900 dark:text-red-100 mb-2">
+                Esta acción eliminará:
+              </p>
+              <ul className="space-y-1 text-sm text-red-700 dark:text-red-300">
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                  El assembly principal
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                  Todos los módulos configurados
+                </li>
+                <li className="flex items-center gap-2 pl-4">
+                  <span className="text-xs">
+                    (Hose, Sleeve, Crimp A/B, Collar A/B, Packaging)
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Botones */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              disabled={isDeleting}
+              className="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={isDeleting}
+              className="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  Eliminar
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const { showError, showSuccess } = useAlert();
+
+  const [userRole, setUserRole] = useState(null);
+  useEffect(() => {
+    setUserRole(getUserRoleFromCookie());
+  }, []);
+  const isCalidad = userRole === "2";
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -61,8 +169,9 @@ export default function DashboardPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [approvingId, setApprovingId] = useState(null);
-  const { showError, showSuccess } = useAlert();
+  const [deletingId, setDeletingId] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
   const itemsPerPage = 5;
 
   async function load() {
@@ -117,16 +226,26 @@ export default function DashboardPage() {
     currentPage * itemsPerPage
   );
 
-  async function handleToggleApprove(item, actionType) {
+  function openDeleteModal(item) {
+    setItemToDelete(item);
+    setShowDeleteModal(true);
+  }
+
+  function closeDeleteModal() {
+    if (!deletingId) {
+      setShowDeleteModal(false);
+      setItemToDelete(null);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!itemToDelete) return;
+
     try {
-      setApprovingId(item);
+      setDeletingId(itemToDelete);
 
-      const payload = {
-        item,
-        aprobado: actionType === 'aprobar' ? 1 : 0,
-      };
-
-      const r = await fetch("/api/assembly/approve", {
+      const payload = { item: itemToDelete, dryRun: false };
+      const r = await fetch("/api/assembly/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -134,38 +253,54 @@ export default function DashboardPage() {
       const d = await r.json();
 
       if (!r.ok || !d?.ok) {
-        if (d?.code === "REGISTRO_RECHAZADO" || d?.code === "REGISTRO_APROBADO") {
-          showError(
-            d?.error || "Este registro ya no puede ser modificado.",
-            "Registro bloqueado"
-          );
-          return;
-        }
-
         if (r.status === 401 && d?.code === "NO_NOMINA") {
           showError(
-            d?.error || "No se pudo aprobar. Inicia sesión nuevamente.",
+            d?.error || "No se pudo eliminar. Inicia sesión nuevamente.",
             "Sesión requerida"
           );
           return;
         }
-
-        showError(d?.error || "No se pudo actualizar la aprobación", "Error");
+        showError(d?.error || "No se pudo eliminar el assembly", "Error");
         return;
       }
 
+      const { deleted } = d;
+      const totalDeleted =
+        (deleted.hose || 0) +
+        (deleted.sleeve || 0) +
+        (deleted.crimpA || 0) +
+        (deleted.collarA || 0) +
+        (deleted.crimpB || 0) +
+        (deleted.collarB || 0) +
+        (deleted.packaging || 0) +
+        (deleted.assembly || 0);
+
+      const detalles = [];
+      if (deleted.hose > 0) detalles.push(`Hose: ${deleted.hose}`);
+      if (deleted.sleeve > 0) detalles.push(`Sleeve: ${deleted.sleeve}`);
+      if (deleted.crimpA > 0) detalles.push(`Crimp A: ${deleted.crimpA}`);
+      if (deleted.collarA > 0) detalles.push(`Collar A: ${deleted.collarA}`);
+      if (deleted.crimpB > 0) detalles.push(`Crimp B: ${deleted.crimpB}`);
+      if (deleted.collarB > 0) detalles.push(`Collar B: ${deleted.collarB}`);
+      if (deleted.packaging > 0)
+        detalles.push(`Packaging: ${deleted.packaging}`);
+      if (deleted.assembly > 0) detalles.push(`Assembly: ${deleted.assembly}`);
+
       showSuccess(
-        actionType === 'aprobar' ? "Registro aprobado" : "Registro rechazado",
-        "Éxito",
-        3000
+        `Assembly #${itemToDelete} eliminado exitosamente.\n\n` +
+          `Total de registros eliminados: ${totalDeleted}\n` +
+          (detalles.length > 0 ? `\nDetalles:\n${detalles.join("\n")}` : ""),
+        "Eliminación completada",
+        5000
       );
 
+      closeDeleteModal();
       await load();
     } catch (e) {
       console.error(e);
-      showError("Error al actualizar la aprobación", "Error");
+      showError("Error al eliminar el assembly", "Error");
     } finally {
-      setApprovingId(null);
+      setDeletingId(null);
     }
   }
 
@@ -209,6 +344,17 @@ export default function DashboardPage() {
       label: "Inicial",
       icon: "🔴",
     };
+  };
+
+  const handleNewAssemblyClick = () => {
+    if (isCalidad) {
+      showError(
+        "Tu rol (Calidad) no permite crear nuevos assemblies.",
+        "Acción no permitida"
+      );
+      return;
+    }
+    router.push("/assembly/new");
   };
 
   if (loading) {
@@ -266,6 +412,15 @@ export default function DashboardPage() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-tr from-blue-400/10 to-cyan-600/10 blur-3xl"></div>
       </div>
 
+      {/* Modal de confirmación */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={closeDeleteModal}
+        onConfirm={confirmDelete}
+        itemNumber={itemToDelete}
+        isDeleting={deletingId !== null}
+      />
+
       <GlobalTopbar
         title="Dashboard de Assembly"
         subtitle="Panel de control y gestión de productos"
@@ -279,16 +434,33 @@ export default function DashboardPage() {
               <Activity className="w-4 h-4" />
               <span>Sistema activo</span>
             </div>
+
+            <button
+              onClick={async () => {
+                await fetch("/api/auth/logout", { method: "POST" });
+                router.replace("/login");
+              }}
+              className="group px-3 sm:px-4 py-2 rounded-lg bg-white/15 hover:bg-white/25 border border-white/20 backdrop-blur-sm transition-all duration-200 hover:scale-105"
+              title="Cerrar sesión"
+            >
+              <span className="inline-flex items-center gap-2 text-sm font-medium">
+                <LogOut className="w-4 h-4" />
+                <span className="hidden xs:inline sm:inline">
+                  Cerrar sesión
+                </span>
+              </span>
+            </button>
           </div>
         }
         newButton={{
           label: "Nuevo Assembly",
-          onClick: () => (window.location.href = "/assembly/new"),
+          onClick: handleNewAssemblyClick,
           icon: Plus,
         }}
       />
 
       <main className="relative max-w-7xl mx-auto px-4 py-8 space-y-8">
+        {/* Interactive KPI Cards */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <InteractiveKPICard
             title="Total Assemblies"
@@ -301,7 +473,7 @@ export default function DashboardPage() {
           <InteractiveKPICard
             title="Con Módulos"
             value={totals.withAny}
-            icon={CheckCircle2}
+            icon={Package2}
             gradient="from-emerald-500 to-green-500"
             data={data}
             type="withModules"
@@ -330,61 +502,8 @@ export default function DashboardPage() {
           />
         </section>
 
-        <section className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
-          <div className="p-6 bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-gradient-to-r from-indigo-500 to-violet-500 text-white">
-                <PieChart className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                  Cobertura por Módulo
-                </h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Distribución de configuraciones por tipo de módulo
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {MODULES_ORDER.map((m) => {
-              const pm = perModule[m.key];
-              const pct = pm?.percent ?? 0;
-              return (
-                <div
-                  key={m.key}
-                  className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 hover:shadow-md transition-all duration-200"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className={`w-4 h-4 rounded-full ${m.color}`}></div>
-                    <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                      {pm?.label || m.label}
-                    </div>
-                  </div>
-                  <div className="mb-2">
-                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                      <span>
-                        {pm?.count || 0}/{totals.assemblies}
-                      </span>
-                      <span className="font-medium">{pct}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                      <div
-                        className={`h-2 ${m.color} transition-all duration-500 ease-out`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="text-xs text-slate-400 dark:text-slate-500">
-                    {pct > 0 ? `${pct}% de assemblies` : "Sin configurar"}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
         <div className="grid lg:grid-cols-4 gap-8">
+          {/* Enhanced Top Customers */}
           <div className="lg:col-span-1 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
             <div className="p-5 bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-3">
@@ -432,6 +551,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Enhanced Recent Assemblies */}
           <div className="lg:col-span-3 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
             <div className="p-5 bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-800">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -449,6 +569,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Search Bar */}
                   <div className="relative">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                     <input
@@ -467,6 +588,7 @@ export default function DashboardPage() {
                       </button>
                     )}
                   </div>
+                  {/* Filter Button */}
                   <div className="relative">
                     <button
                       onClick={() => setShowFilters(!showFilters)}
@@ -541,39 +663,23 @@ export default function DashboardPage() {
                     <th className="px-3 py-3 w-48 min-w-[180px] text-center">
                       Módulos
                     </th>
-                    <th className="px-3 py-3 w-20 min-w-[80px] text-center">
-                      Acciones
-                    </th>
-                    <th className="px-3 py-3 w-24 min-w-[100px] text-center">
-                      Aprobado
-                    </th>
                     <th className="px-3 py-3 w-32 min-w-[120px] text-center">
-                      Aprobado por
-                    </th>
-                    <th className="px-3 py-3 w-36 min-w-[140px] text-center">
-                      Fecha
+                      Acciones
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-{paginatedRecents.map((r) => {
+                  {paginatedRecents.map((r) => {
                     const completedCount = getModuleCompletionCount(r.modules);
                     const status = getCompletionStatus(completedCount);
                     const completionPercentage = Math.round(
                       (completedCount / MODULES_ORDER.length) * 100
                     );
 
-                    // ✅ CORRECCIÓN: Verificar si tiene estado final basándose en AprobadoPorId
-                    const tieneEstadoFinal = r.aprobadoPorId !== null && r.aprobadoPorId !== undefined;
-                    const isAprobado = tieneEstadoFinal && r.aprobado === true;
-                    const isRechazado = tieneEstadoFinal && r.aprobado === false;
-
                     return (
                       <tr
                         key={r.item}
-                        className={`hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group ${
-                          tieneEstadoFinal ? 'opacity-75' : ''
-                        }`}
+                        className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group"
                       >
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-1">
@@ -651,105 +757,25 @@ export default function DashboardPage() {
                           </div>
                         </td>
                         <td className="px-3 py-3 text-center">
-                          <div className="inline-flex items-center gap-2">
-                            {/* Solo mostrar botones si NO tiene estado final */}
-                            {!tieneEstadoFinal && (
-                              <>
-                                {/* Botón Aprobar */}
-                                <button
-                                  disabled={approvingId === r.item}
-                                  onClick={() => handleToggleApprove(r.item, 'aprobar')}
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border transition-all duration-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:border-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Aprobar"
-                                >
-                                  {approvingId === r.item ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <>
-                                      <CheckCircle2 className="w-3 h-3" />
-                                      <span className="hidden sm:inline">Aprobar</span>
-                                    </>
-                                  )}
-                                </button>
-
-                                {/* Botón Rechazar */}
-                                <button
-                                  disabled={approvingId === r.item}
-                                  onClick={() => handleToggleApprove(r.item, 'rechazar')}
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border transition-all duration-200 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Rechazar"
-                                >
-                                  {approvingId === r.item ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <>
-                                      <X className="w-3 h-3" />
-                                      <span className="hidden sm:inline">Rechazar</span>
-                                    </>
-                                  )}
-                                </button>
-                              </>
-                            )}
-
-                            {/* Mostrar estado final si ya fue procesado */}
-                            {tieneEstadoFinal && (
-                              <span className="text-xs text-slate-500 dark:text-slate-400 italic">
-                                {isAprobado ? '✓ Ya aprobado' : '✗ Ya rechazado'}
-                              </span>
-                            )}
+                          <div className="inline-flex items-center justify-center">
+                            <button
+                              disabled={deletingId === r.item}
+                              onClick={() => openDeleteModal(r.item)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md"
+                              title="Eliminar assembly y todos sus módulos"
+                            >
+                              {deletingId === r.item ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <>
+                                  <Trash2 className="w-3 h-3" />
+                                  <span className="hidden sm:inline">
+                                    Eliminar
+                                  </span>
+                                </>
+                              )}
+                            </button>
                           </div>
-                        </td>
-
-                        {/* Estado Aprobado */}
-                        <td className="px-3 py-3 text-center">
-                          {isAprobado ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600">
-                              ✅ Aprobado
-                            </span>
-                          ) : isRechazado ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 text-red-600">
-                              🚫 Rechazado
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 text-slate-600">
-                              ⭕ Pendiente
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Aprobado por */}
-                        <td className="px-3 py-3 text-center">
-                          {r.aprobadoPor?.nombreCompleto ? (
-                            <span className="text-xs font-medium text-slate-800 dark:text-slate-200">
-                              {r.aprobadoPor.nombreCompleto}
-                            </span>
-                          ) : r.aprobadoPorId ? (
-                            <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
-                              {r.aprobadoPorId}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-slate-400">-</span>
-                          )}
-                        </td>
-
-                        {/* Fecha */}
-                        <td className="px-3 py-3 text-center">
-                          {r.aprobadoEn ? (
-                            <span className="text-xs text-slate-600 dark:text-slate-300">
-                              {new Date(r.aprobadoEn).toLocaleString("es-MX", {
-                                timeZone: "UTC",
-                                year: "numeric",
-                                month: "numeric",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                second: "2-digit",
-                                hour12: false,
-                              })}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-slate-400">-</span>
-                          )}
                         </td>
                       </tr>
                     );
