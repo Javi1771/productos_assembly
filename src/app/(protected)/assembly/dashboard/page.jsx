@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Package2, BarChart2, Users, Layers, Search, Filter, TrendingUp, Activity, Plus, AlertCircle, Loader2, RefreshCw, X, Hash, Building2, Target, BarChart3, Trash2, AlertTriangle, LogOut, } from "lucide-react";
+import JobsTable from "@/components/JobsTable";
+import { Package2, BarChart2, Users, Layers, Search, Filter, TrendingUp, Plus, AlertCircle, Loader2, 
+  RefreshCw, X, Hash, Building2, Target, BarChart3, Trash2, AlertTriangle, LogOut, Upload
+} from "lucide-react";
 import GlobalTopbar from "@/components/GlobalTopbar";
 import { useAlert } from "@/components/AlertSystem";
 import InteractiveKPICard from "@/components/InteractiveKPICard";
@@ -443,6 +446,19 @@ export default function DashboardPage() {
                 <LogOut className="w-4 h-4" />
                 <span className="hidden xs:inline sm:inline">
                   Cerrar sesión
+                </span>
+              </span>
+            </button>
+
+            <button
+              onClick={() => router.push("/assembly/upload-excel")}
+              className="group px-3 sm:px-4 py-2 rounded-lg bg-white/15 hover:bg-white/25 border border-white/20 backdrop-blur-sm transition-all duration-200 hover:scale-105"
+              title="Cargar Excel"
+            >
+              <span className="inline-flex items-center gap-2 text-sm font-medium">
+                <Upload className="w-4 h-4" />
+                <span className="hidden xs:inline sm:inline">
+                  Cargar Excel
                 </span>
               </span>
             </button>
@@ -893,6 +909,11 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Tabla de Jobs */}
+<section>
+  <JobsTable />
+</section>
 
         {/* Enhanced Stats Summary */}
         {data && (
