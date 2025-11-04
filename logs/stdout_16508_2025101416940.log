@@ -1,0 +1,22 @@
+   ▲ Next.js 15.4.7
+   - Local:        http://localhost:33265
+   - Network:      http://192.168.56.1:33265
+
+ ✓ Starting...
+ ⚠ Invalid next.config.ts options detected: 
+ ⚠     Unrecognized key(s) in object: 'serverComponentsExternalPackages' at "experimental"
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+ ⚠ `experimental.serverComponentsExternalPackages` has been moved to `serverExternalPackages`. Please update your next.config.ts file accordingly.
+ ✓ Ready in 49.4s
+[db] error al conectar: Error [ConnectionError]: [object Object]
+    at PrivateConnection.callback2 (D:\Proyectos personales\productos_assembly\.next\server\chunks\4155.js:2:96546) {
+  code: undefined
+}
+Error [ConnectionError]: [object Object]
+    at PrivateConnection.callback2 (D:\Proyectos personales\productos_assembly\.next\server\chunks\4155.js:2:96546) {
+  code: undefined
+}
+ ⨯ unhandledRejection:  Error [ConnectionError]: [object Object]
+    at PrivateConnection.callback2 (D:\Proyectos personales\productos_assembly\.next\server\chunks\4155.js:2:96546) {
+  code: undefined
+}

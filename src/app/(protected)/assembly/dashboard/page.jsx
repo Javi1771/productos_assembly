@@ -6,6 +6,7 @@ import { Package2, BarChart2, Users, Layers, Search, Filter, TrendingUp, Activit
 import GlobalTopbar from "@/components/GlobalTopbar";
 import { useAlert } from "@/components/AlertSystem";
 import InteractiveKPICard from "@/components/InteractiveKPICard";
+import TopAssembliesChart from "@/components/TopAssembliesChart";
 
 const MODULES_ORDER = [
   { key: "hose", label: "Hose Cut", color: "bg-amber-500", shortLabel: "Hose" },
@@ -430,11 +431,6 @@ export default function DashboardPage() {
         showBack={true}
         rightExtra={
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-xs bg-white/15 border border-white/20 px-3 py-2 rounded-lg backdrop-blur-sm">
-              <Activity className="w-4 h-4" />
-              <span>Sistema activo</span>
-            </div>
-
             <button
               onClick={async () => {
                 await fetch("/api/auth/logout", { method: "POST" });
@@ -500,6 +496,10 @@ export default function DashboardPage() {
             type="average"
             suffix=" / 7"
           />
+        </section>
+
+        <section>
+          <TopAssembliesChart />
         </section>
 
         <div className="grid lg:grid-cols-4 gap-8">

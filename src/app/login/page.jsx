@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useAlert } from "@/components/AlertSystem";
 
-// ---- Wrapper con Suspense (obligatorio para useSearchParams) ----
+//! ---- Wrapper con Suspense (obligatorio para useSearchParams) ----
 export default function LoginPageWrapper() {
   return (
     <Suspense
@@ -46,20 +46,20 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Partículas deterministas (evita Math.random() en el render SSR)
+  //* Partículas deterministas (evita Math.random() en el render SSR)
   const particles = useMemo(() => {
     const size = 20;
-    // Secuencia determinista simple basada en el índice
+    //* Secuencia determinista simple basada en el índice
     return Array.from({ length: size }, (_, i) => {
-      const left = (i * 37) % 100;     // 37 y 53 son primos relativos a 100
+      const left = (i * 37) % 100;     //* 37 y 53 son primos relativos a 100
       const top = (i * 53) % 100;
-      const delay = (i % 4) * 0.5;     // 0, 0.5, 1.0, 1.5…
-      const duration = 2 + (i % 3);    // 2, 3 o 4 s
+      const delay = (i % 4) * 0.5;     //* 0, 0.5, 1.0, 1.5…
+      const duration = 2 + (i % 3);    //* 2, 3 o 4 s
       return { left, top, delay, duration };
     });
   }, []);
 
-  // Al entrar a /login, borra cookie de sesión (fallback cliente)
+  //! Al entrar a /login, borra cookie de sesión (fallback cliente)
   useEffect(() => {
     (async () => {
       try {
@@ -68,7 +68,7 @@ function LoginPage() {
           credentials: "same-origin",
         });
       } catch {
-        // ignorar; el middleware también la elimina
+        //! ignorar; el middleware también la elimina
       }
     })();
   }, []);
@@ -88,7 +88,7 @@ function LoginPage() {
 
       showSuccess("¡Bienvenido! Sesión iniciada correctamente");
 
-      // Soporta redirección a ?next=/ruta/protegida
+      //? Soporta redirección a ?next=/ruta/protegida
       const next = searchParams.get("next");
       const dest = next && next.startsWith("/") ? next : "/assembly/new";
 
