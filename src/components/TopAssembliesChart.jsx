@@ -49,8 +49,8 @@ export default function TopByModuleChart() {
   const tabs = [
     { id: "corte", label: "Corte", icon: "🔪" },
     { id: "acabado", label: "Acabado", icon: "📦" },
-    { id: "crimpA", label: "Crimp A", icon: "🔧" },
-    { id: "crimpB", label: "Crimp B", icon: "🔩" },
+    { id: "crimpA", label: "RCrimp A", icon: "🔧" },
+    { id: "crimpB", label: "RCrimp B", icon: "🔩" },
   ];
 
   if (loading) {

@@ -437,7 +437,7 @@ export default function UploadExcelPage() {
                               123
                             </td>
                             <td className="px-2 sm:px-3 py-2 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                              L01
+                              1
                             </td>
                             <td className="px-2 sm:px-3 py-2 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 whitespace-nowrap">
                               100
