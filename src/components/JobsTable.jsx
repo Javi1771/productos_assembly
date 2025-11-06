@@ -17,7 +17,7 @@ export default function JobsTable() {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: "50",
+        limit: "10",
         ...(searchTerm && { search: searchTerm }),
       });
 

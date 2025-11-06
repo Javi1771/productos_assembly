@@ -355,7 +355,7 @@ export default function AssemblyNewPage() {
     router.push(routeFor(m.key));
   };
 
-  // Limpiar si vienes de /login (post-login)
+  //* Limpiar si vienes de /login (post-login)
   useEffect(() => {
     if (!mounted) return;
     const cameFromLogin =

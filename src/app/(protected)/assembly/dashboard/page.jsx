@@ -911,9 +911,9 @@ export default function DashboardPage() {
         </div>
 
         {/* Tabla de Jobs */}
-<section>
-  <JobsTable />
-</section>
+        <section>
+          <JobsTable />
+        </section>
 
         {/* Enhanced Stats Summary */}
         {data && (
