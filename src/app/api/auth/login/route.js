@@ -7,12 +7,27 @@ export const runtime = "nodejs";
 
 const SCHEMA      = "dbo";
 const USERS_TABLE = "Usuarios";
-const PROV_TABLE  = "Operadores"; //* <- tabla de operadores
+const PROV_TABLE  = "Operadores";
 
-//? ---------- Helpers ----------
+//? ───────── helpers ─────────
+const mask = (str = "") => "*".repeat(Math.min(String(str).length, 24));
+const safeBody = ({ correo, password }) => ({
+  correo,
+  password: password ? `${mask(password)} (len=${password.length})` : undefined,
+});
 const esc = (name) => `[${String(name).replace(/]/g, "]]")}]`;
 const isBcryptHash = (val) => !!val && /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(val);
 const normalizeEmail = (x) => String(x || "").trim().toLowerCase();
+
+function isRequestHttps(req) {
+  //* Detrás de IIS/ARR, pasa x-forwarded-proto
+  const xf = req.headers.get("x-forwarded-proto");
+  if (xf) return xf.split(",")[0].trim() === "https";
+  //* Fallback por URL
+  if (req.url?.startsWith("https://")) return true;
+  //* Permite forzar por env
+  return (process.env.COOKIE_SECURE || "").toLowerCase() === "true";
+}
 
 const CANDIDATES = {
   id:       ["IdUsuario","IDUsuario","UsuarioID","id","Id","id_usuario","UsuarioId","Nomina","ProveedorID","IdProveedor"],
@@ -50,32 +65,49 @@ async function getTableColumns(pool, schema, table) {
   return res.recordset.map((r) => r.col);
 }
 
+/*
+ * Búsqueda por correo en 3 pasos:
+ * 1) ESTRICTA:  emailCol = @correo
+ * 2) NORMALIZADA: LOWER(LTRIM(RTRIM(emailCol))) = LOWER(LTRIM(RTRIM(@correo)))
+ * 3) DIAGNÓSTICO: sugiere hasta 3 candidatos
+ */
 async function fetchByEmailLoose(pool, schema, table, emailCol, correoRaw) {
   const correoNorm = normalizeEmail(correoRaw);
 
-  //? 1) Estricta
+  //? 1) estricta
   const qStrict = `
     SELECT TOP 1 *
     FROM ${esc(schema)}.${esc(table)}
     WHERE ${esc(emailCol)} = @correo
   `;
-  let r = await pool.request().input("correo", MSSQL.NVarChar, correoRaw).query(qStrict);
-  if (r.recordset?.[0]) return r.recordset[0];
+  let r = await pool.request()
+    .input("correo", MSSQL.NVarChar, correoRaw)
+    .query(qStrict);
+  if (r.recordset?.[0]) {
+    console.log(`[login][${table}] match STRICT por "${emailCol}"`);
+    return r.recordset[0];
+  }
 
-  //? 2) Normalizada
+  //? 2) normalizada
   const qNormalized = `
     SELECT TOP 1 *
     FROM ${esc(schema)}.${esc(table)}
     WHERE LOWER(LTRIM(RTRIM(${esc(emailCol)}))) = LOWER(LTRIM(RTRIM(@correoNorm)))
   `;
-  r = await pool.request().input("correoNorm", MSSQL.NVarChar, correoNorm).query(qNormalized);
-  if (r.recordset?.[0]) return r.recordset[0];
+  r = await pool.request()
+    .input("correoNorm", MSSQL.NVarChar, correoNorm)
+    .query(qNormalized);
+  if (r.recordset?.[0]) {
+    console.log(`[login][${table}] match NORMALIZED por "${emailCol}" (LOWER+TRIM)`);
+    return r.recordset[0];
+  }
 
-  //? 3) Diagnóstico (opcional logs)
+  //? 3) diagnóstico
   try {
     const at = correoNorm.indexOf("@");
     const domain = at > 0 ? correoNorm.slice(at) : "";
     const prefix = at > 0 ? correoNorm.slice(0, Math.max(1, Math.min(5, at))) : correoNorm.slice(0, 5);
+
     const qDiag = `
       SELECT TOP 3 ${esc(emailCol)} AS candidato
       FROM ${esc(schema)}.${esc(table)}
@@ -83,11 +115,17 @@ async function fetchByEmailLoose(pool, schema, table, emailCol, correoRaw) {
          OR LOWER(${esc(emailCol)}) LIKE LOWER(@like2)
       ORDER BY ${esc(emailCol)}
     `;
-    await pool.request()
-      .input("like1", MSSQL.NVarChar, prefix + "%")
-      .input("like2", MSSQL.NVarChar, "%" + domain)
+    const like1 = prefix + "%";
+    const like2 = "%" + domain;
+    const d = await pool.request()
+      .input("like1", MSSQL.NVarChar, like1)
+      .input("like2", MSSQL.NVarChar, like2)
       .query(qDiag);
-  } catch {}
+
+    console.log(`[login][${table}] sin match. Diagnóstico (max 3):`, d.recordset?.map(x => x.candidato));
+  } catch (e) {
+    console.log(`[login][${table}] diagnóstico falló:`, e?.message);
+  }
 
   return null;
 }
@@ -102,13 +140,18 @@ function buildDisplayName(row, nombreCol, apellidoCol) {
     return nombre;
   }
   const posibles = ["Nombre", "nombre", "NombreCompleto", "nombre_completo", "FullName", "full_name"];
-  for (const p of posibles) if (row[p] && String(row[p]).trim()) return String(row[p]).trim();
+  for (const p of posibles) {
+    if (row[p] && String(row[p]).trim()) return String(row[p]).trim();
+  }
   return "Usuario";
 }
+
 function extractRole(row, roleCol) {
   if (roleCol && row[roleCol] != null) return String(row[roleCol]).trim();
   const posibles = ["Rol","rol","Role","Perfil","perfil","TipoUsuario","tipo_usuario","Tipo","tipo","Cargo","cargo"];
-  for (const p of posibles) if (row[p] != null && String(row[p]).trim()) return String(row[p]).trim();
+  for (const p of posibles) {
+    if (row[p] != null && String(row[p]).trim()) return String(row[p]).trim();
+  }
   return "Usuario";
 }
 
@@ -118,20 +161,29 @@ async function updateUserPasswordHash(pool, schema, table, idCol, idVal, passCol
     SET ${esc(passCol)} = @hash
     WHERE ${esc(idCol)} = @id
   `;
-  await pool.request().input("hash", MSSQL.NVarChar, newHash).input("id", idVal).query(q);
+  await pool
+    .request()
+    .input("hash", MSSQL.NVarChar, newHash)
+    .input("id", idVal)
+    .query(q);
 }
 
-//? ======== LOGIN =========
+//? ───────── handler ─────────
 export async function POST(req) {
   try {
     const { correo, password } = await req.json();
+    console.log("[login] body:", safeBody({ correo, password }));
+
     if (!correo || !password) {
-      return NextResponse.json({ error: "Correo y contraseña son requeridos" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Correo y contraseña son requeridos" },
+        { status: 400 }
+      );
     }
 
     const pool = await getPool();
 
-    //* Columnas Usuarios
+    //* columnas de USUARIOS
     const usersCols = await getTableColumns(pool, SCHEMA, USERS_TABLE);
     const uEmailCol   = findColumn(usersCols, CANDIDATES.email);
     const uPassCol    = findColumn(usersCols, CANDIDATES.password);
@@ -141,20 +193,39 @@ export async function POST(req) {
     let   uRolCol     = findColumn(usersCols, CANDIDATES.rol);
     let   uNominaCol  = findColumn(usersCols, CANDIDATES.nomina);
 
+    console.log("[login] columns[USUARIOS]:", {
+      table: USERS_TABLE,
+      uEmailCol, uPassCol, uIdCol, uNomCol, uApeCol, uRolCol, uNominaCol
+    });
+
     if (!uEmailCol || !uPassCol) {
-      return NextResponse.json({ error: "No se encontraron columnas de correo/contraseña en Usuarios" }, { status: 500 });
+      return NextResponse.json(
+        { error: "No se encontraron columnas de correo/contraseña en la tabla Usuarios" },
+        { status: 500 }
+      );
     }
 
+    let emailColForFound = uEmailCol;
     let source = null;
     let found  = null;
     let currNominaCol = null;
-    let emailColForFound = uEmailCol;
 
-    //? 1) Usuarios
+    //* intento #1: USUARIOS
     found = await fetchByEmailLoose(pool, SCHEMA, USERS_TABLE, uEmailCol, correo);
+
     if (found) {
       source = "USUARIOS";
       currNominaCol = uNominaCol;
+
+      const inputEmail   = String(correo);
+      const dbEmailRaw   = String(found[uEmailCol] ?? "");
+      const inputNorm    = normalizeEmail(inputEmail);
+      const dbEmailNorm  = normalizeEmail(dbEmailRaw);
+      console.log("[login][MATCH][USUARIOS] compare:", {
+        input: inputEmail, db: dbEmailRaw,
+        equalStrict: inputEmail === dbEmailRaw,
+        equalNorm:   inputNorm === dbEmailNorm
+      });
 
       const stored = found[uPassCol];
       if (!stored) return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
@@ -164,48 +235,49 @@ export async function POST(req) {
         if (!ok) return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
       } else {
         if (password !== stored) return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
-        if (uIdCol) {
+        if (!uIdCol) {
+          console.warn("[login] No se pudo migrar a bcrypt: columna ID no encontrada en Usuarios");
+        } else {
           const newHash = await bcrypt.hash(password, 10);
           await updateUserPasswordHash(pool, SCHEMA, USERS_TABLE, uIdCol, found[uIdCol], uPassCol, newHash);
           found[uPassCol] = newHash;
         }
       }
     } else {
-      //? 2) Operadores (bloqueados)
+      //* intento #2: PROVEEDORES (Operadores) - BLOQUEADO
       const provCols  = await getTableColumns(pool, SCHEMA, PROV_TABLE);
       const pEmailCol = findColumn(provCols, CANDIDATES.email);
       const pPassCol  = findColumn(provCols, CANDIDATES.password);
 
+      console.log("[login] columns[PROVEEDORES]:", {
+        table: PROV_TABLE,
+        pEmailCol, pPassCol
+      });
+
       if (pEmailCol && pPassCol) {
         const prov = await fetchByEmailLoose(pool, SCHEMA, PROV_TABLE, pEmailCol, correo);
+        
+        //! ❌ BLOQUEO: Si el usuario existe en Operadores, denegar acceso
         if (prov) {
-          //! BLOQUEO POR TABLA
-          return NextResponse.json(
-            { error: "Tu perfil (Operador) no tiene acceso a este sistema." },
-            { status: 403 }
-          );
+          console.log("[login][PROVEEDORES] Usuario encontrado pero BLOQUEADO - tabla Operadores no permitida");
+          return NextResponse.json({ 
+            error: "Acceso denegado", 
+            message: "Tu usuario no tiene permisos para acceder a este sistema. Contacta al administrador.",
+            userType: "operador"
+          }, { status: 403 }); //! 403 = Forbidden
         }
       }
-      //! si no existe en operadores, seguimos como no encontrado
+
+      //! Si no está ni en Usuarios ni en Operadores, credenciales inválidas
       return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
     }
 
-    //! ---- BLOQUEO POR ROL (aunque venga de Usuarios) ----
-    const rol = extractRole(found, uRolCol);
-    const rolNorm = String(rol ?? "").trim().toLowerCase();
-    if (rolNorm === "operador" || rolNorm === "operadores" || rolNorm === "operator" || rolNorm === "3") {
-      return NextResponse.json(
-        { error: "Tu perfil (Operador) no tiene acceso a este sistema." },
-        { status: 403 }
-      );
-    }
-
-    //* ---- Éxito: token + cookies ----
+    //* éxito → token + cookies (solo llega aquí si found viene de USUARIOS)
     const idVal    = uIdCol ? found[uIdCol] : undefined;
     const emailVal = found[emailColForFound];
     const nombre   = buildDisplayName(found, uNomCol, uApeCol);
+    const rol      = extractRole(found, uRolCol);
 
-    //* nómina si existe
     let nominaVal = null;
     if (currNominaCol && found[currNominaCol] != null && String(found[currNominaCol]).trim() !== "") {
       nominaVal = found[currNominaCol];
@@ -233,26 +305,48 @@ export async function POST(req) {
       },
     });
 
+    //* cookies (secure solo si HTTPS)
+    const secure = isRequestHttps(req);
+
     res.cookies.set("session", token, {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure,
       path: "/",
       maxAge: 60 * 60 * 8,
     });
+
     res.cookies.set("u_nombre", encodeURIComponent(nombre), {
-      httpOnly: false, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 8,
+      httpOnly: false,
+      sameSite: "lax",
+      secure,
+      path: "/",
+      maxAge: 60 * 60 * 8,
     });
+
     res.cookies.set("u_rol", encodeURIComponent(rol), {
-      httpOnly: false, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 8,
+      httpOnly: false,
+      sameSite: "lax",
+      secure,
+      path: "/",
+      maxAge: 60 * 60 * 8,
     });
+
     if (nominaVal != null && String(nominaVal).trim() !== "") {
       res.cookies.set("u_nomina", encodeURIComponent(String(nominaVal).trim()), {
-        httpOnly: false, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 8,
+        httpOnly: false,
+        sameSite: "lax",
+        secure,
+        path: "/",
+        maxAge: 60 * 60 * 8,
       });
     } else {
       res.cookies.set("u_nomina", "", {
-        httpOnly: false, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 0,
+        httpOnly: false,
+        sameSite: "lax",
+        secure,
+        path: "/",
+        maxAge: 0,
       });
     }
 

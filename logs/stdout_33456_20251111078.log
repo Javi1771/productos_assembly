@@ -1,0 +1,140 @@
+   ▲ Next.js 15.4.7
+   - Local:        http://localhost:11512
+   - Network:      http://192.168.0.227:11512
+
+ ✓ Starting...
+ ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+ ✓ Ready in 4.4s
+[db] Error al conectar: Error [ConnectionError]: Failed to connect to localhost:1433 - Could not connect (sequence)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:78:68210)
+    at R.b (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86355)
+    at R.emit (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86546)
+    at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92687)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+  code: 'ESOCKET',
+  originalError: Error: Failed to connect to localhost:1433 - Could not connect (sequence)
+      at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92702)
+      at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+    code: 'ESOCKET',
+    [cause]: AggregateError: Could not connect (sequence)
+        at i (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:84:119128)
+        at async (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89281)
+  }
+}
+Error [ConnectionError]: Failed to connect to localhost:1433 - Could not connect (sequence)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:78:68210)
+    at R.b (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86355)
+    at R.emit (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86546)
+    at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92687)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+  code: 'ESOCKET',
+  originalError: Error: Failed to connect to localhost:1433 - Could not connect (sequence)
+      at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92702)
+      at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+    code: 'ESOCKET',
+    [cause]: AggregateError: Could not connect (sequence)
+        at i (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:84:119128)
+        at async (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89281)
+  }
+}
+ ⨯ unhandledRejection:  Error [ConnectionError]: Failed to connect to localhost:1433 - Could not connect (sequence)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:78:68210)
+    at R.b (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86355)
+    at R.emit (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86546)
+    at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92687)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+  code: 'ESOCKET',
+  originalError: Error: Failed to connect to localhost:1433 - Could not connect (sequence)
+      at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92702)
+      at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+    code: 'ESOCKET',
+    [cause]: AggregateError: Could not connect (sequence)
+        at i (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:84:119128)
+        at async (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89281)
+  }
+}
+[login] body: { correo: 'g@gate.com', password: '*** (len=3)' }
+[login] error: Error [ConnectionError]: Failed to connect to localhost:1433 - Could not connect (sequence)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:78:68210)
+    at R.b (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86355)
+    at R.emit (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86546)
+    at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92687)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+  code: 'ESOCKET',
+  originalError: Error: Failed to connect to localhost:1433 - Could not connect (sequence)
+      at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92702)
+      at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+    code: 'ESOCKET',
+    [cause]: AggregateError: Could not connect (sequence)
+        at i (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:84:119128)
+        at async (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89281)
+  }
+}
+[login] body: { correo: 'g@gate.com', password: '*** (len=3)' }
+[login] error: Error [ConnectionError]: Failed to connect to localhost:1433 - Could not connect (sequence)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:78:68210)
+    at R.b (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86355)
+    at R.emit (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86546)
+    at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92687)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+  code: 'ESOCKET',
+  originalError: Error: Failed to connect to localhost:1433 - Could not connect (sequence)
+      at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92702)
+      at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+    code: 'ESOCKET',
+    [cause]: AggregateError: Could not connect (sequence)
+        at i (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:84:119128)
+        at async (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89281)
+  }
+}
+[login] body: { correo: 'g@gate.com', password: '*** (len=3)' }
+[login] error: Error [ConnectionError]: Failed to connect to localhost:1433 - Could not connect (sequence)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:78:68210)
+    at R.b (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86355)
+    at R.emit (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86546)
+    at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92687)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+  code: 'ESOCKET',
+  originalError: Error: Failed to connect to localhost:1433 - Could not connect (sequence)
+      at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92702)
+      at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+    code: 'ESOCKET',
+    [cause]: AggregateError: Could not connect (sequence)
+        at i (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:84:119128)
+        at async (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89281)
+  }
+}
+[login] body: { correo: 'g@gates.com', password: '*** (len=3)' }
+[login] error: Error [ConnectionError]: Failed to connect to localhost:1433 - Could not connect (sequence)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:78:68210)
+    at R.b (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86355)
+    at R.emit (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86546)
+    at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92687)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+  code: 'ESOCKET',
+  originalError: Error: Failed to connect to localhost:1433 - Could not connect (sequence)
+      at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92702)
+      at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+    code: 'ESOCKET',
+    [cause]: AggregateError: Could not connect (sequence)
+        at i (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:84:119128)
+        at async (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89281)
+  }
+}
+[login] body: { correo: 'g@gates.com', password: '*** (len=3)' }
+[login] error: Error [ConnectionError]: Failed to connect to localhost:1433 - Could not connect (sequence)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:78:68210)
+    at R.b (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86355)
+    at R.emit (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:86546)
+    at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92687)
+    at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+  code: 'ESOCKET',
+  originalError: Error: Failed to connect to localhost:1433 - Could not connect (sequence)
+      at R.socketError (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:92702)
+      at <unknown> (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89527) {
+    code: 'ESOCKET',
+    [cause]: AggregateError: Could not connect (sequence)
+        at i (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:84:119128)
+        at async (D:\Proyectos personales\productos_assembly\.next\server\chunks\6332.js:1:89281)
+  }
+}

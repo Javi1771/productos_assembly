@@ -84,11 +84,21 @@ function LoginPage() {
         body: JSON.stringify({ correo, password }),
       });
       const data = await res.json();
+      
+      //! Manejo especial para usuarios bloqueados
+      if (res.status === 403 && data.userType === "operador") {
+        showError(
+          data.message || "Tu usuario no tiene permisos para acceder a este sistema.",
+          "Acceso Denegado"
+        );
+        setLoading(false);
+        return;
+      }
+      
       if (!res.ok) throw new Error(data?.error || "Error de login");
 
       showSuccess("¡Bienvenido! Sesión iniciada correctamente");
 
-      //? Soporta redirección a ?next=/ruta/protegida
       const next = searchParams.get("next");
       const dest = next && next.startsWith("/") ? next : "/assembly/new";
 
