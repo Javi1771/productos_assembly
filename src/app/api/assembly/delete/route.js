@@ -4,17 +4,6 @@ import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
-/*
- * POST /api/assembly/approve  (ahora: ELIMINAR)
- * Body:
- *  {
- *    item: number,          // requerido
- *    dryRun?: boolean       // opcional, true = no borra, solo reporta
- *  }
- *
- * Respuesta:
- *  { ok: true, mode: "dryRun"|"deleted", deleted: { hose, sleeve, crimpA, collarA, crimpB, collarB, packaging, assembly } }
- */
 export async function POST(req) {
   try {
     const body = await req.json();

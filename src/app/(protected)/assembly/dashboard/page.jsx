@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import JobsTable from "@/components/JobsTable";
 import { Package2, BarChart2, Users, Layers, Search, Filter, TrendingUp, Plus, AlertCircle, Loader2, 
-  RefreshCw, X, Hash, Building2, Target, BarChart3, Trash2, AlertTriangle, LogOut, Upload
+  RefreshCw, X, Hash, Building2, Target, BarChart3, Trash2, AlertTriangle, LogOut, Upload, Edit
 } from "lucide-react";
 import GlobalTopbar from "@/components/GlobalTopbar";
 import { useAlert } from "@/components/AlertSystem";
@@ -194,6 +194,13 @@ export default function DashboardPage() {
     }
   }
 
+  const handleEditAssembly = (item) => {
+    const token = encodeItemId(item);
+    window.location.href = `/assembly/new?edit=1&item=${encodeURIComponent(
+      token
+    )}`;
+  };
+
   useEffect(() => {
     load();
   }, []);
@@ -360,6 +367,14 @@ export default function DashboardPage() {
     }
     router.push("/assembly/new");
   };
+
+  //* Helper function to encode item ID like in the original code
+  function encodeItemId(itemId) {
+    return btoa(itemId.toString()).replace(
+      /[+/=]/g,
+      (match) => ({ "+": "-", "/": "_", "=": "" }[match])
+    );
+  }
 
   if (loading) {
     return (
@@ -679,7 +694,7 @@ export default function DashboardPage() {
                     <th className="px-3 py-3 w-48 min-w-[180px] text-center">
                       Módulos
                     </th>
-                    <th className="px-3 py-3 w-32 min-w-[120px] text-center">
+                    <th className="px-3 py-3 w-20 min-w-[80px] text-center">
                       Acciones
                     </th>
                   </tr>
@@ -773,20 +788,33 @@ export default function DashboardPage() {
                           </div>
                         </td>
                         <td className="px-3 py-3 text-center">
-                          <div className="inline-flex items-center justify-center">
+                          <div className="inline-flex items-center gap-2">
+                            {/* Botón Editar */}
+                            <button
+                              onClick={() => handleEditAssembly(r.item)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-indigo-100 hover:bg-indigo-150 text-indigo-600 hover:text-indigo-700 border border-indigo-200 hover:border-indigo-300 transition-all duration-200 opacity-70 group-hover:opacity-100 whitespace-nowrap"
+                              title="Editar assembly"
+                            >
+                              <Edit className="w-3 h-3" />
+                              <span className="hidden sm:inline">Editar</span>
+                            </button>
+                            {/* Botón Desaprobar */}
                             <button
                               disabled={deletingId === r.item}
-                              onClick={() => openDeleteModal(r.item)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md"
-                              title="Eliminar assembly y todos sus módulos"
+                              onClick={() => {
+                                setItemToDelete(r.item);
+                                confirmDelete();
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border transition-all duration-200 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md"
+                              title="Desaprobar assembly"
                             >
                               {deletingId === r.item ? (
                                 <Loader2 className="w-3 h-3 animate-spin" />
                               ) : (
                                 <>
-                                  <Trash2 className="w-3 h-3" />
+                                  <X className="w-3 h-3" />
                                   <span className="hidden sm:inline">
-                                    Eliminar
+                                    Desaprobar
                                   </span>
                                 </>
                               )}
