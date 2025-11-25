@@ -163,6 +163,7 @@ export default function AssemblyNewPage() {
   const lastParam = searchParams.get("last");
 
   useEffect(() => {
+    //* Modo edición
     if (editParam === "1" && itemParam) {
       const id = decodeItemId(itemParam);
       if (id != null && !Number.isNaN(id)) {
@@ -198,12 +199,38 @@ export default function AssemblyNewPage() {
       }
     }
 
+    //* Modo "volver desde módulo" - cargar datos pero NO en modo edición
     if (lastParam) {
       const id = decodeItemId(lastParam);
       if (id != null && !Number.isNaN(id)) {
+        if (loadedIdRef.current === id) return;
+        loadedIdRef.current = id;
+
         setCreatedItem(id);
-        setIsEditing(false);
+        setIsEditing(false); //! NO es modo edición
         setItemValue(String(id));
+
+        //* CARGAR LOS DATOS DEL ASSEMBLY
+        (async () => {
+          setLoadingAssembly(true);
+          try {
+            const r = await fetch(`/api/assembly?item=${id}`, { cache: "no-store" });
+            const d = await r.json();
+            if (!r.ok || !d?.ok || !d.assembly) {
+              throw new Error(d?.error || "Assembly no encontrado");
+            }
+            const a = d.assembly;
+            //* Llenar el formulario con los datos del assembly
+            setDescripcion(String(a.Description ?? ""));
+            setCustomer(String(a.Customer ?? ""));
+            setNci(String(a.NCI ?? ""));
+            setCustomerRev(String(a.CustomerRev ?? ""));
+          } catch (e) {
+            showError(e.message || "No se pudo cargar el assembly");
+          } finally {
+            setLoadingAssembly(false);
+          }
+        })();
       }
     }
   }, [editParam, itemParam, lastParam, showError]);

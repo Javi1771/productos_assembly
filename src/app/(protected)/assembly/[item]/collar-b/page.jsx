@@ -170,7 +170,6 @@ export default function CollarBPage() {
     }
   }
 
-  // Check if all required fields are filled
   const isFormValid =
     (!isEditing ? item : true) &&
     description &&
