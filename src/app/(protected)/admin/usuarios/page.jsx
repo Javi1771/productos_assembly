@@ -1077,7 +1077,7 @@ export default function UsersAdminPage() {
                       <>
                         <div className="flex items-start gap-2">
                           <CheckCircle className="w-3 h-3 mt-0.5 text-emerald-500 flex-shrink-0" />
-                          <span>Acceso a reportes y dashboard</span>
+                          <span>Acceso a dashboard</span>
                         </div>
                         <div className="flex items-start gap-2">
                           <CheckCircle className="w-3 h-3 mt-0.5 text-emerald-500 flex-shrink-0" />
@@ -1102,7 +1102,7 @@ export default function UsersAdminPage() {
                         </div>
                         <div className="flex items-start gap-2">
                           <CheckCircle className="w-3 h-3 mt-0.5 text-emerald-500 flex-shrink-0" />
-                          <span>Operaciones de producción</span>
+                          <span>Sin operaciones en este sistema</span>
                         </div>
                       </>
                     )}

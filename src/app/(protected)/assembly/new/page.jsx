@@ -13,7 +13,9 @@ import {
   Sparkles,
   CheckCircle,
   BarChart2,
+  CircleAlert,
   LogOut,
+  UserPen,
   Info,
 } from "lucide-react";
 import { useAlert } from "@/components/AlertSystem";
@@ -89,7 +91,7 @@ export default function AssemblyNewPage() {
     if (!mounted) return;
     if (userRole === "2") {
       setRedirecting(true);
-      router.replace("/assembly/dashboard");
+      router.replace("/assembly/calidad");
     }
   }, [mounted, userRole, router]);
 
@@ -395,7 +397,7 @@ export default function AssemblyNewPage() {
     }
   }, [mounted]);
 
-  // Bloquear render si está redirigiendo por rol 2
+  //! Bloquear render si está redirigiendo por rol 2
   if (redirecting) {
     return (
       <div className="min-h-screen grid place-items-center">
@@ -451,6 +453,19 @@ export default function AssemblyNewPage() {
               </button>
             )}
 
+            {(isCalidad || isAdmin) && (
+              <button
+                onClick={() => router.push("/assembly/calidad")}
+                className="group px-3 sm:px-4 py-2 rounded-lg bg-white/15 hover:bg-white/25 border border-white/20 backdrop-blur-sm transition-all duration-200 hover:scale-105"
+                title="Control Calidad"
+              >
+                <span className="inline-flex items-center gap-2 text-sm font-medium">
+                  <CircleAlert className="w-4 h-4" />
+                  <span className="hidden xs:inline sm:inline">Calidad</span>
+                </span>
+              </button>
+            )}
+
             {/* Admin: botón de usuarios */}
             {isAdmin && (
               <button
@@ -459,8 +474,8 @@ export default function AssemblyNewPage() {
                 title="Agregar usuario"
               >
                 <span className="inline-flex items-center gap-2 text-sm font-medium">
-                  <Save className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  <span className="hidden xs:inline sm:inline">Agregar usuario</span>
+                  <UserPen className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  <span className="hidden xs:inline sm:inline">Usuarios</span>
                 </span>
               </button>
             )}

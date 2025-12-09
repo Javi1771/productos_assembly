@@ -21,8 +21,9 @@ const C = {
 
 const esc = (name) => `[${String(name).replace(/]/g, "]]")}]`;
 
-function denyIfNotAdmin() {
-  const cok = cookies().get("u_rol")?.value;
+async function denyIfNotAdmin() {
+  const cookieStore = await cookies();
+  const cok = cookieStore.get("u_rol")?.value;
   if (cok !== "1") {
     return NextResponse.json({ ok: false, error: "Solo administradores" }, { status: 403 });
   }
@@ -64,7 +65,9 @@ function decideTargetTable(rol) {
 
 //* GET: lista combinada
 export async function GET() {
-  const deny = denyIfNotAdmin(); if (deny) return deny;
+  const deny = await denyIfNotAdmin(); 
+  if (deny) return deny;
+  
   try {
     const pool = await getPool();
 
@@ -126,7 +129,9 @@ export async function GET() {
 
 //? POST: crear según rol → tabla
 export async function POST(req) {
-  const deny = denyIfNotAdmin(); if (deny) return deny;
+  const deny = await denyIfNotAdmin(); 
+  if (deny) return deny;
+  
   try {
     const { correo="", password, nombre="", apellido="", nomina="", rol=3, rfid="" } = await req.json();
     const pool = await getPool();
